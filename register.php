@@ -107,6 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: bold;
         }
 
+
         input, select, button {
             width: 97%;
             padding: 10px;
@@ -130,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 10px;
             margin-bottom: 10px;
         }
+
     </style>
 </head>
 <body>
@@ -137,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <h2>Create Account</h2>
 
 <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" enctype="multipart/form-data">
+
     <label for="first-name">First Name</label>
     <input type="text" id="first-name" name="first" placeholder="Enter your first name" required>
 
@@ -169,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <button type="submit">Create Account</button>
 </form>
+
 
 <script>
     const form = document.querySelector('form');

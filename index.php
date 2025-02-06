@@ -9,6 +9,7 @@ Revisions:
 1/25/25: Dylan Theis created php db connection and html doc outline
 02/04/25: Ty Steinbach added PHP to ensure reset_password functionality when needed
 02/05/25: Keagan Haar created a styling CSS
+
 -->
 
 
@@ -17,6 +18,9 @@ Revisions:
 session_start();
 
 $_SESSION['reset'] = 0;
+
+// Database connection details
+
 $host = '';
 $user = '';
 $pass = ''; 
