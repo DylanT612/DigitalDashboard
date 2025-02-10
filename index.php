@@ -2,12 +2,14 @@
 Login page(index)
 CSC 450 Capstone Final Project Byethost
 Dylan Theis: theisd@csp.edu
-Keagan Harr: 
-Ty Steinbach:
+Keagan Haar: haark@csp.edu
+Ty Steinbach: 
 1/25/25
 Revisions: 
 1/25/25: Dylan Theis created php db connection and html doc outline
 02/04/25: Ty Steinbach added PHP to ensure reset_password functionality when needed
+02/05/25: Keagan Haar created a styling CSS
+
 -->
 
 
@@ -16,13 +18,20 @@ Revisions:
 session_start();
 
 $_SESSION['reset'] = 0;
+
 // Database connection details
+
 $host = '';
 $user = '';
 $pass = ''; 
 $dbname = '';
 
 $conn = new mysqli($host, $user, $pass, $dbname);
+
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
 
 // If host, db, user, or pass is incorrect create error
 if ($conn->connect_error) {
@@ -91,11 +100,48 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
-</head>
-<!-- TODO: EVENTUAL STYLES NEEDED -->
+    <head>
+    <style>
+        /* Apply styles to the entire page */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            color: white;
+            overflow: hidden;
+        }
 
+        /* Background container */
+        .background {
+            position: absolute;
+            width: 105%;
+            height: 105%;
+            background: url('./Images/Geo.jpg');
+            filter: blur(5px);
+            z-index: -1; /* Makes background lower stack order than content */
+        }
+
+        /* Add a slightly sharper content area */
+        .login-container {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        /* Style headers */
+        h1, h2, p {
+            margin: 10px;
+        }
+    </style>
+</head>
 
 <body>
+    <div class="background"></div>
     <div class="login-container">
         <div class="profile-pic"></div>
         <h2>Login</h2>
