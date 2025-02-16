@@ -100,8 +100,8 @@ if (!isset($_SESSION['username'])) {
 
         /* Weather container color based on what time it is */
         .morning { background: blue; }
-        .afternoon { background: light blue; }
-        .evening { background: dark blue; }
+        .afternoon { background: skyblue; }
+        .evening { background: navy; }
         .night { background: darkslateblue; }
 
         /* Weather Details */
