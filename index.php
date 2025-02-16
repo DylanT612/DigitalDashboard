@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
             // Verify correct password
-            if (hash('sha256', $password) === $user['password']) {
+            if (password_verify($_POST['password'], $user['password'])) {
                 // Log user in and progress them to homepage
                 $_SESSION['username'] = $user['username'];
 
