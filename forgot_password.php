@@ -8,6 +8,7 @@ Ty Steinbach: steinbat1@csp.edu
 Revisions: 
 1/25/25: Dylan Theis created html doc outline
 02/04/25: Ty Steinbach added PHP functionality to change password to temp password and email that password to correct user.
+02/16/25: Ty Steinbach changed hash() to password_hash() for security, changed table to users
 -->
 
 <!DOCTYPE html>
@@ -19,9 +20,9 @@ Revisions:
     <?php 
 
         //PHPMailer classes
-        require 'C:/Program Files/Ampps/www/CSC450/src/Exception.php';
-        require 'C:/Program Files/Ampps/www/CSC450/src/PHPMailer.php';
-        require 'C:/Program Files/Ampps/www/CSC450/src/SMTP.php';
+        require 'C:/Program Files/Ampps/www/CSC450/Version 2/src/Exception.php';
+        require 'C:/Program Files/Ampps/www/CSC450/Version 2/src/PHPMailer.php';
+        require 'C:/Program Files/Ampps/www/CSC450/Version 2/src/SMTP.php';
 
         //Using PHPMailer stuff
         use PHPMailer\PHPMailer\PHPMailer;
@@ -29,10 +30,10 @@ Revisions:
 
 
         //Database connection details
-        $host = '';
-        $user = '';
-        $pass = ''; 
-        $dbname = '';
+        $host = 'localhost';
+        $user = 'root';
+        $pass = 'mysql'; 
+        $dbname = 'csc450temp';
 
         //Establish connection
         $conn = new mysqli($host, $user, $pass, $dbname);
@@ -49,7 +50,7 @@ Revisions:
             //If the email field is not empty
             if (!empty($email)) {
                 //Select user from email
-                $sql = "SELECT * FROM dashboard_login WHERE email = ? LIMIT 1";
+                $sql = "SELECT * FROM users WHERE email = ? LIMIT 1";
                 $stmt = $conn->prepare($sql);
                 $stmt->bind_param("s", $email);
                 //Retrieve credentials
@@ -61,10 +62,10 @@ Revisions:
                     $user = $result->fetch_assoc(); //Get results in manageable form
                     $stmt->close(); //Close connection
                     $pass = bin2hex(random_bytes(3)); //Create random secure 6 digit code
-                    $passTemp = hash('sha256', $pass); //Hash code
+                    $passTemp = password_hash( $pass, PASSWORD_DEFAULT); //Hash code
 
                     //SQL to update
-                    $sql = "UPDATE dashboard_login SET password = ?, resetting = 1 WHERE email = ? LIMIT 1";
+                    $sql = "UPDATE users SET password = ?, resetting = 1 WHERE email = ? LIMIT 1";
 
                     // Set up a prepared statement
                     if($stmt = $conn->prepare($sql)) {

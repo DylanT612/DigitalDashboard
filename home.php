@@ -11,24 +11,21 @@ Revisions:
 2/09/25: Dylan Theis linked API and wrote (css, html, JS) for weather api for items such as city, temperature, SVGs, forecast boxes
 2/11/25: Dylan Theis made advancements on weather, features such as feels like, city time, added cityName api to find whatever city based on coords. Improved getClothingRec function
 2/12/25: Dylan Theis added wind and made small edits(colors, etc)
+02/14/25: Ty Steinbach added profile picture and dropdown menu for account settings, including styles
+02/16/25: Ty Steinbach changed the profile pic to be dynamic
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
 NOMINATIM API for sourcing the coordinates for the weather data
 -->
-
-
 <?php 
 session_start();
-
 // Confirm login of user from index
 if (!isset($_SESSION['username'])) {
     header("Location: index.php");
     exit();
 }
 ?>
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,6 +33,70 @@ if (!isset($_SESSION['username'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <style>
+        /*Header Styles*/
+        header {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px;
+        }
+        h1 {
+            width: fit-content;
+            height: fit-content;
+        }
+        #profileContainer {
+            background-color: lightgray;
+            width: 60px;
+            height: 60px;
+            text-align: center;
+            border-radius: 100%;
+            z-index: 2;
+        }
+        div#profileContainer:hover {
+            cursor: pointer;
+        }
+        #profilePic {
+            margin-top: 9px;
+        }
+        #profileNav {
+            display: none;
+            grid-template-columns: 100%;
+            grid-template-rows: 60px 20px;
+            justify-content: space-between;
+            row-gap: 10px;
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            min-width: 200px;
+            min-height: 250px;
+            color: white;
+            background-color: rgb(93, 93, 104);
+            border-radius: 10px;
+            padding: 10px;
+            z-index: 1;
+        }
+        #profNavUsername {
+            display: block;
+            height: fit-content;
+            font-size: 15pt;
+            font-weight: bold;
+            margin-right: 80px;
+        }
+        .profNav {
+            text-align: center;
+            display: block;
+            width: 90%;
+            height: fit-content;
+            font-size: 15pt;
+            padding: 5px;
+            margin-left: auto;
+            margin-right: auto;
+            border-radius: 5px;
+            background-color: rgb(33, 33, 53);
+        }
+        .profNav:hover {
+            background-color:rgb(16, 16, 26);
+            cursor: pointer;
+        }
         /* News Ticker Container */
         .news-ticker {
             position: fixed;
@@ -80,14 +141,13 @@ if (!isset($_SESSION['username'])) {
             from { transform: translateX(0); } 
             to { transform: translateX(-50%); } 
         }
-    </style>
 
-    <style>
         /* Weather Container */
         .weather-container {
+            background-color: rgb(33, 33, 53);
             position: fixed;
             right: 20px;
-            top: 60px;
+            top: 90px;
             width: 350px;
             height: 80vh;
             overflow: hidden;
@@ -100,8 +160,8 @@ if (!isset($_SESSION['username'])) {
 
         /* Weather container color based on what time it is */
         .morning { background: blue; }
-        .afternoon { background: skyblue; }
-        .evening { background: navy; }
+        .afternoon { background: light blue; }
+        .evening { background: dark blue; }
         .night { background: darkslateblue; }
 
         /* Weather Details */
@@ -166,30 +226,65 @@ if (!isset($_SESSION['username'])) {
             object-fit: contain;
         }
 
+
     </style>
+    <?php 
+    
 
-</head>
+    $host = 'localhost';
+    $user = 'root';
+    $pass = 'mysql'; 
+    $dbname = 'csc450temp';
 
-<body>
-    <h1>Home Page</h1>
+    $conn = new mysqli($host, $user, $pass, $dbname);
 
-    <!-- Weather Display -->
-    <div id="weatherContainer" class="weather-container">
-        <div class="weather-header" id="cityName">-</div>
-        <div class="weather-today">
-            <span id="weatherTime">-</span>
-            <img id="weatherIcon" class="weather-icon" src="" alt="Weather Icon">
-        </div>
-        <div class="weather-temp" id="weatherTemp">-</div>
-        <div class="weather-feels-like" id="weatherFeelsLike">-</div>
-        <div class="weather-desc" id="weatherDesc">-</div>
-        <div class="clothing-rec" id="clothingRec">-</div>
-        <div class="forecast" id="weeklyForecast"></div>
-        <div class="forecast" id="forecast-container"></div>
-    </div>
 
+    if ($conn->connect_error) {
+        die("Connection failed: " . $conn->connect_error);
+    }
+
+    // If host, db, user, or pass is incorrect create error
+    if ($conn->connect_error) {
+        die("Failed to connect: " . $conn->connect_error);
+    }
+
+    //Selects appropriate transaction and makes sure the data stays in its input elements
+
+    $sql = "SELECT * FROM users WHERE username = ? LIMIT 1";
+    
+    // Set up a prepared statement
+    if($stmt = $conn->prepare($sql)) {
+
+        // Pass the parameters
+        $stmt->bind_param("s", $_SESSION['username']);
+
+        if($stmt->errno) {
+            print_r("stmt prepare( ) had error."); 
+        }
+
+        // Execute the query
+        $stmt->execute();
+        if($stmt->errno) {
+            print_r("Could not execute prepared statement");
+        }
+
+        // Fetch the results
+        $result = $stmt->get_result();
+
+        // Free results
+        $stmt->free_result( );
+        
+        // Close the statement
+        $stmt->close( );
+    } // end of if($conn->prepare($sql))
+
+    $row = $result->fetch_assoc();
+    $thisUser = [
+        "profile_picture" => $row["profile_picture"]
+    ];   
+    ?>
     <script>
-
+        var profileDisplayHandler = false;
         // TODO: MAKE IT SO API IS DYNAMIC ON USER CITY DROPDOWN CHOICE IN USER ACCT change api based on lat and lon 
         async function fetchWeather() {
             const latitude = 44.9778;  // Example: Minneapolis
@@ -212,7 +307,7 @@ if (!isset($_SESSION['username'])) {
                 // Run nominatim api to get the city name from the coordinates
                 const cityName = await getCityName(latitude, longitude);
                 document.getElementById("cityName").textContent = cityName;
-                
+
                 // Get city weather information
                 const cityTimezone = data.timezone;
                 const now = new Date();
@@ -286,7 +381,7 @@ if (!isset($_SESSION['username'])) {
             }
         }
 
-    
+
         function getWeatherDescription(code, windSpeed) {
             let descriptions = {
                 0: "Clear Sky", 
@@ -370,7 +465,7 @@ if (!isset($_SESSION['username'])) {
         }
 
 
-        
+
         function getClothingRecommendation(temp, weatherCode) {
             let recommendation = "";
 
@@ -397,10 +492,6 @@ if (!isset($_SESSION['username'])) {
             return recommendation.trim();
         }
 
-        // Fetch weather data on load
-        fetchWeather();
-
-
         // Api gets city name based on coordinates selected
         async function getCityName(latitude, longitude) {
             const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
@@ -421,29 +512,19 @@ if (!isset($_SESSION['username'])) {
                 console.error("Error getting city name: ", error);
                 return "Unknown Location";
             }
-            
+
         }
 
-    </script>
-
-
-
-    <!-- News Ticker -->
-    <div class="news-ticker">
-        <div class="ticker-wrap" id="newsTicker"></div>
-    </div>
-
-    <script>
         // Run GNEWS API
         async function fetchNews() {
-            const apiKey = '';
+            const apiKey = '79c06757c8c854e45b98939daff87ead';
             const url = `https://gnews.io/api/v4/top-headlines?category=general&lang=en&country=us&max=10&apikey=${apiKey}`;
 
             // Get GNEWS json data
             try {
                 const response = await fetch(url);
                 const data = await response.json();
-                
+
                 if (!data.articles) {
                     console.error("Error fetching news:", data);
                     return;
@@ -456,9 +537,9 @@ if (!isset($_SESSION['username'])) {
                 data.articles.forEach(article => {
                     const newsItem = document.createElement('div');
                     newsItem.classList.add('ticker-item');
-                    
+
                     newsItem.innerHTML = `<a href="${article.url}" target="_blank">${article.title} - ${article.source.name}</a>`;
-                    
+
                     ticker.appendChild(newsItem);
                 });
 
@@ -470,13 +551,73 @@ if (!isset($_SESSION['username'])) {
                 console.error("Error fetching news:", error);
             }
         }
+        function profileEvents () {
+            document.getElementById("profileContainer").addEventListener("click", () => {
+                console.log(profileDisplayHandler);
+                profileDisplayHandler = !profileDisplayHandler;
+                displayProfileOptions(profileDisplayHandler);
+            });
+
+            document.getElementById('profNavSettings').addEventListener('click', () => {
+                window.location.href = 'user_acct_settings.php';
+            });
+        }
+        function displayProfileOptions(display) {
+            const profileNav = document.getElementById("profileNav");
+            if (display) {
+                profileNav.style.display = 'grid';
+            } else {
+                profileNav.style.display = 'none';
+            }
+        }
+        //Event listener for clicking profile picture
+    </script>
+</head>
+
+<body>
+    <header>
+        <h1>Home Page</h1>
+        <div id="profileContainer">
+            <img src="<?php echo $thisUser['profile_picture']; ?>" width="42px" height="42px" alt="profile picture" id="profilePic">
+        </div>
+        
+    </header>
+    <nav id="profileNav">
+        <div id="profNavUsername"><?php echo $_SESSION['username']; ?></div>
+        <div class="profNav" id="profNavSettings">Account Settings</div>
+    </nav>
+
+    <!-- Weather Display -->
+    <aside id="weatherContainer" class="weather-container">
+        <div class="weather-header" id="cityName">-</div>
+        <div class="weather-today">
+            <span id="weatherTime">-</span>
+            <img id="weatherIcon" class="weather-icon" src="" alt="Weather Icon">
+        </div>
+        <div class="weather-temp" id="weatherTemp">-</div>
+        <div class="weather-feels-like" id="weatherFeelsLike">-</div>
+        <div class="weather-desc" id="weatherDesc">-</div>
+        <div class="clothing-rec" id="clothingRec">-</div>
+        <div class="forecast" id="weeklyForecast"></div>
+        <div class="forecast" id="forecast-container"></div>
+    </aside>
+
+    <!-- News Ticker -->
+    <div class="news-ticker">
+        <div class="ticker-wrap" id="newsTicker"></div>
+    </div>
+
+    <script>
+        // Fetch weather data on load
+        fetchWeather();
 
         // Get news when loaded
         fetchNews(); 
-   
+
         // Refresh News every hour
         setInterval(fetchNews, 3600000);
 
+        profileEvents();
     </script>
 
 </body>
