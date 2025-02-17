@@ -9,6 +9,7 @@ Revisions:
 1/25/25: Dylan Theis created php db connection and html doc outline
 02/04/25: Ty Steinbach added PHP to ensure reset_password functionality when needed
 02/05/25: Keagan Haar created a styling CSS
+02/16/25: Ty Steinbach changed hash() to password_hash() for security and changed comparison to password_verify, changed table to users
 
 -->
 
@@ -21,10 +22,10 @@ $_SESSION['reset'] = 0;
 
 // Database connection details
 
-$host = '';
-$user = '';
-$pass = ''; 
-$dbname = '';
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'csc450temp';
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -47,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Check filled in
     if (!empty($username) && !empty($password)) {
-        $stmt = $conn->prepare("SELECT * FROM dashboard_login WHERE username = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
         $stmt->bind_param("s", $username);
         // Retrieve credentials
         $stmt->execute();
@@ -57,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
             // Verify correct password
-            if (password_verify($_POST['password'], $user['password'])) {
+            if (password_verify($password,   $user['password'])) {
                 // Log user in and progress them to homepage
                 $_SESSION['username'] = $user['username'];
 
