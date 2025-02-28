@@ -14,6 +14,7 @@ Revisions:
 02/14/25: Ty Steinbach started a wireframe and started implimenting forms
 02/15/25: Ty Steinbach added full PHP functionality 
 02/16/25: Ty Steinbach styled
+02/27/25: Ty Steinbach ensured first select options are disabled
 -->
 <?php 
 session_start();
@@ -504,13 +505,13 @@ if (!isset($_SESSION['username'])) {
                     <div class="formSelect" id="gridCountry">
                         <select name="country" id="optCountry" value="">
                             <!--Automatically creates all options from database-->
-                            <option value="">Choose Country</option>
+                            <option disabled selected value>Choose Country</option>
                             <?php 
                                 $sql = "SELECT * FROM countries";
                                 if($stmt = $conn->prepare($sql)) {
                                     $stmt->execute();
                                     if($stmt->errno) {
-                                        displayMessage("Could not execute prepared statement", "red" );
+                                        print_r("Could not execute prepared statement");
                                     }
                                     $result = $stmt->get_result();
                                     $stmt->free_result();
@@ -525,13 +526,13 @@ if (!isset($_SESSION['username'])) {
                     <div class="formSelect" id="gridState">
                         <select name="state" id="optState" hidden>
                             <!--Automatically creates all options from database-->
-                            <option value="">Choose State</option>
+                            <option disabled selected value>Choose State</option>
                             <?php 
                                 $sql = "SELECT * FROM states";
                                 if($stmt = $conn->prepare($sql)) {
                                     $stmt->execute();
                                     if($stmt->errno) {
-                                        displayMessage("Could not execute prepared statement", "red" );
+                                        print_r("Could not execute prepared statement");
                                     }
                                     $result = $stmt->get_result();
                                     $stmt->free_result();
