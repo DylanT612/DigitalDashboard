@@ -8,13 +8,14 @@ Ty Steinbach:
 Revisions: 
 1/25/25: Dylan Theis created html doc outline
 2/4/25: Keagan Haar created styling and input html
+02/16/25: Ty Steinbach added PHP functionality to change the default value for a user profile pic
 -->
 <?php
 // Database connection
-$host = "";
-$user = "";
-$pass = "";
-$dbname = "";
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'csc450temp';
 
 // Create connection
 $conn = new mysqli($host, $user, $pass, $dbname);
@@ -36,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $state = $conn->real_escape_string($_POST['state']);
     
     // Handle file upload (profile picture)
-    $profile_picture = NULL;
+    $profile_picture = "uploads/blankProfile.png";
     if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
         $target_dir = "uploads/";
         $target_file = $target_dir . basename($_FILES["picture"]["name"]);
