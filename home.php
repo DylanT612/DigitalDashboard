@@ -232,10 +232,10 @@ if (!isset($_SESSION['username'])) {
     <?php 
     
 
-    $host = 'localhost';
-    $user = 'root';
-    $pass = 'mysql'; 
-    $dbname = 'csc450temp';
+    $host = '';
+    $user = '';
+    $pass = ''; 
+    $dbname = '';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
