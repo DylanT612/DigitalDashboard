@@ -9,6 +9,7 @@ Revisions:
 1/25/25: Dylan Theis created html doc outline
 2/4/25: Keagan Haar created styling and input html
 02/16/25: Ty Steinbach added PHP functionality to change the default value for a user profile pic
+02/27/25: Ty Steinbach added more secure SQL statement with added fields to include country functionality, along with the required HTML and JS
 -->
 <?php
 // Database connection
@@ -35,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $birth_date = isset($_POST['bday']) ? $conn->real_escape_string($_POST['bday']) : NULL;
     $city = $conn->real_escape_string($_POST['city']);
     $state = $conn->real_escape_string($_POST['state']);
+    $country = $conn->real_escape_string($_POST['country']);
     
     // Handle file upload (profile picture)
     $profile_picture = "uploads/blankProfile.png";
@@ -55,19 +57,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Insert user data into database
-    $sql = "INSERT INTO users (first_name, last_name, email, username, password, birth_date, city, state, profile_picture)
-            VALUES ('$first_name', '$last_name', '$email', '$username', '$password', '$birth_date', '$city', '$state', '$profile_picture')";
-    
-    if ($conn->query($sql) === TRUE) {
-        header("Location: /index.php"); // Redirect us back to our index (home page) upon successful creation
-        exit();
-    } else {
-        echo "Error: " . $sql . "<br>" . $conn->error;
+    // $sql for prepared statement
+    $sql = "INSERT INTO users (first_name, last_name, email, username, password, birth_date, city, id_state, id_country, profile_picture) VALUES (?,?,?,?,?,?,?,?,?,?)";
+    // Prepare
+    if($stmt = $conn->prepare($sql)) {
+        // Bind the parameters
+        $stmt->bind_param("ssssssssss", $first_name, $last_name, $email, $username, $password, $birth_date, $city, $state, $country, $profile_picture); 
+        if($stmt->errno) {
+            print_r("stmt prepare( ) had error."); 
+        }
+        // Execute the query
+        $stmt->execute();
+        if($stmt->errno) {
+            print_r("Could not execute prepared statement");
+            $result = false;
+        }
+        else {
+            $result = true;
+        }
+
+        // Free results
+        $stmt->free_result( );
+
+        // Close the statement
+        $stmt->close( );
     }
 
-    // Close connection
-    $conn->close();
+    if ($result) {
+        header("Location: index.php"); // Redirect us back to our index (home page) upon successful creation
+        exit();
+    } 
 }
 ?>
 
@@ -135,6 +154,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     </style>
 </head>
+<script type="module">
+    import { eventOptAmerica } from './src/stateDisplayHandler.js';
+
+    const form = document.querySelector('form');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
+
+    // Function to display or hide error messages
+    function handleError(input, message) {
+        let errorElement = input.nextElementSibling;
+        if (!errorElement || !errorElement.classList.contains('error')) {
+            errorElement = document.createElement('span');
+            errorElement.classList.add('error');
+            input.parentNode.insertBefore(errorElement, input.nextSibling);
+        }
+        errorElement.textContent = message || '';
+    }
+
+    function submitEvent(event) {
+        let valid = true;
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+
+        // Assure that our password is intially 8 characters long
+        if (password.length < 8) {
+            handleError(passwordInput, 'Password must be at least 8 characters long.');
+            valid = false;
+        } else {
+            handleError(passwordInput);
+        }
+
+        // Confirm that passwords do match
+        if (confirmPassword !== password) {
+            handleError(confirmPasswordInput, 'Passwords do not match.');
+            valid = false;
+        } else {
+            handleError(confirmPasswordInput);
+        }
+
+        // If we error out, ensure the form cannot be submitted untils changes are made
+        if (!valid) event.preventDefault();
+    }
+
+    //Add event listener to the country select element to see if USA was selected
+    optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
+</script>
 <body>
 
 <h2>Create Account</h2>
@@ -162,11 +227,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label for="bday">Birth Date (Optional)</label>
     <input type="date" id="bday" name="bday" placeholder="Enter your birth date">
 
-    <label for="city">City</label>
-    <input type="text" id="city" name="city" placeholder="Enter the city you reside in" required>
+    <!--City text input-->
+    <label for="txtCity">City</label>
+    <input type="text" id="txtCity" name="city" required>
 
-    <label for="state">State</label>
-    <input type="text" id="state" name="state" placeholder="Enter the state you reside in" required>
+    <!--Country select-->
+    <select name="country" id="optCountry" value="">
+        <!--Automatically creates all options from database-->
+        <option disabled selected value>Choose Country</option>
+        <?php 
+            $sql = "SELECT * FROM countries";
+            if($stmt = $conn->prepare($sql)) {
+                $stmt->execute();
+                if($stmt->errno) {
+                    print_r("Could not execute prepared statement");
+                }
+                $result = $stmt->get_result();
+                $stmt->free_result();
+                $stmt->close();
+            }
+            while($row = $result->fetch_assoc()) {    
+                echo "<option value='" . $row['countryCode'] . "'>" . $row['country'] . "</option>\n";
+            }
+        ?>
+    </select>
+
+    <!--State select-->
+    <select name="state" id="optState" hidden>
+        <!--Automatically creates all options from database-->
+        <option disabled selected value>Choose State</option>
+        <?php 
+            $sql = "SELECT * FROM states";
+            if($stmt = $conn->prepare($sql)) {
+                $stmt->execute();
+                if($stmt->errno) {
+                    print_r("Could not execute prepared statement");
+                }
+                $result = $stmt->get_result();
+                $stmt->free_result();
+                $stmt->close();
+            }
+            while($row = $result->fetch_assoc()) {    
+                echo "<option value='" . $row['stateCode'] . "'>" . $row['state'] . "</option>\n";
+            }
+        ?>
+    </select>
 
     <label for="profile-picture">Profile Picture (PNG and JPEG Files)</label>
     <input type="file" id="profile-picture" name="picture" accept="image/png, image/jpg">
@@ -176,45 +281,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 <script>
-    const form = document.querySelector('form');
-    const passwordInput = document.getElementById('password');
-    const confirmPasswordInput = document.getElementById('confirm-password');
 
-    // Function to display or hide error messages
-    function handleError(input, message) {
-        let errorElement = input.nextElementSibling;
-        if (!errorElement || !errorElement.classList.contains('error')) {
-            errorElement = document.createElement('span');
-            errorElement.classList.add('error');
-            input.parentNode.insertBefore(errorElement, input.nextSibling);
-        }
-        errorElement.textContent = message || '';
-    }
-
-    form.addEventListener('submit', function (e) {
-        let valid = true;
-        const password = passwordInput.value;
-        const confirmPassword = confirmPasswordInput.value;
-
-        // Assure that our password is intially 8 characters long
-        if (password.length < 8) {
-            handleError(passwordInput, 'Password must be at least 8 characters long.');
-            valid = false;
-        } else {
-            handleError(passwordInput);
-        }
-
-        // Confirm that passwords do match
-        if (confirmPassword !== password) {
-            handleError(confirmPasswordInput, 'Passwords do not match.');
-            valid = false;
-        } else {
-            handleError(confirmPasswordInput);
-        }
-
-        // If we error out, ensure the form cannot be submitted untils changes are made
-        if (!valid) e.preventDefault();
-    });
+    form.addEventListener('submit', submitEvent);
 </script>
 
 </body>
