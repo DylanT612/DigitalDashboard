@@ -13,6 +13,7 @@ Revisions:
 2/12/25: Dylan Theis added wind and made small edits(colors, etc)
 02/14/25: Ty Steinbach added profile picture and dropdown menu for account settings, including styles
 02/16/25: Ty Steinbach changed the profile pic to be dynamic
+02/27/25: Ty Steinbach made the weather fetch dynamic with the user's stored info
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
@@ -231,10 +232,10 @@ if (!isset($_SESSION['username'])) {
     <?php 
     
 
-    $host = 'localhost';
-    $user = 'root';
-    $pass = 'mysql'; 
-    $dbname = 'csc450temp';
+    $host = '';
+    $user = '';
+    $pass = ''; 
+    $dbname = '';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -280,21 +281,24 @@ if (!isset($_SESSION['username'])) {
 
     $row = $result->fetch_assoc();
     $thisUser = [
-        "profile_picture" => $row["profile_picture"]
+        "profile_picture" => $row["profile_picture"],
+        "city" => $row['city'],
+        "country" => $row['id_country'],
+        "state" => $row['id_state']
     ];   
     ?>
     <script>
-        var profileDisplayHandler = false;
-        // TODO: MAKE IT SO API IS DYNAMIC ON USER CITY DROPDOWN CHOICE IN USER ACCT change api based on lat and lon 
-        async function fetchWeather() {
-            const latitude = 44.9778;  // Example: Minneapolis
-            const longitude = -93.265;
-            const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=44.9778&longitude=-93.265&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum&timezone=auto&timeformat=unixtime&temperature_unit=fahrenheit`; 
+        var profileDisplayHandler = false;        
+        async function handleWeather() {
+            const locationData = await searchLocation('<?php echo $thisUser["city"]; ?>', '<?php echo $thisUser["state"]; ?>', '<?php echo $thisUser["country"]; ?>');
 
-            // Get json data from API
-            try {
-                const response = await fetch(weatherUrl);
-                const data = await response.json();
+            //If a location is found
+            if(locationData.length > 0) {
+                //Set lat/lon const from locationData
+                const lat = locationData[0]['lat'];
+                const lon = locationData[0]['lon'];
+
+                const data = await fetchWeather(lat, lon);
 
                 //Used for troubleshooting API
                 // console.log("API Response:", data); 
@@ -305,7 +309,7 @@ if (!isset($_SESSION['username'])) {
                 }
 
                 // Run nominatim api to get the city name from the coordinates
-                const cityName = await getCityName(latitude, longitude);
+                const cityName = '<?php echo $thisUser["city"]; ?>';
                 document.getElementById("cityName").textContent = cityName;
 
                 // Get city weather information
@@ -375,10 +379,10 @@ if (!isset($_SESSION['username'])) {
                     // Add the new forecast day to the container
                     forecastContainer.appendChild(forecastDay);
                 }
-
-            } catch (error) {
-                console.error("Error fetching weather:", error);
+            } else { //Else display error
+                console.error("Location not found.");
             }
+            
         }
 
 
@@ -492,27 +496,52 @@ if (!isset($_SESSION['username'])) {
             return recommendation.trim();
         }
 
-        // Api gets city name based on coordinates selected
-        async function getCityName(latitude, longitude) {
-            const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
-
-            // Get json data
+        async function searchLocation(city, stateCode, countryCode) {
+            const API_KEY = '42d428f253f687aaf4e3c9b7bbb38468';
             try {
-                const response = await fetch(url);
-                const data = await response.json();
-
-                // Return name
-                if (data.address) {
-                    return data.address.city || data.address.town || data.address.village || "Unknown Location";
-                } else {
-                    return "Unknown Location";
+                //Fetch data from API
+                const response = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${city},${stateCode},${countryCode}&limit=1&appid=${API_KEY}`);
+                
+                //If response is not ok, throw error
+                if (!response.ok) {
+                    throw new Error(`HTTP Error\nStatus: ${response.status} - ${response.statusText}`);
                 }
 
-            } catch (error) {
-                console.error("Error getting city name: ", error);
-                return "Unknown Location";
-            }
+                //Put data in constant after parsing
+                const data = await response.json();
+                
+                //Return data
+                return(data);
 
+            } catch (error) { //Catch thrown error
+                //Log and display error
+                console.error("Error fetching data:", error);
+                displayError(error);
+            }
+        }
+
+        //Fetches weather info
+        async function fetchWeather(lat, lon) {
+            try {
+                //Fetch data from API
+                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum&timezone=auto&timeformat=unixtime&temperature_unit=fahrenheit`);
+                
+                //If response is not ok, throw error
+                if (!response.ok) {
+                    throw new Error(`HTTP Error\nStatus: ${response.status} - ${response.statusText}`);
+                }
+
+                //Put data in constant after parsing
+                const data = await response.json();
+
+                //Return data
+                return(data);
+
+            } catch (error) { //Catch thrown error
+                //Log and display error
+                console.error("Error fetching data:", error);
+                return null;
+            }
         }
 
         // Run GNEWS API
@@ -609,7 +638,7 @@ if (!isset($_SESSION['username'])) {
 
     <script>
         // Fetch weather data on load
-        fetchWeather();
+        handleWeather();
 
         // Get news when loaded
         fetchNews(); 
