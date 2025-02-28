@@ -13,10 +13,10 @@ Revisions:
 -->
 <?php
 // Database connection
-$host = 'localhost';
-$user = 'root';
-$pass = 'mysql'; 
-$dbname = 'csc450temp';
+$host = '';
+$user = '';
+$pass = ''; 
+$dbname = '';
 
 // Create connection
 $conn = new mysqli($host, $user, $pass, $dbname);
