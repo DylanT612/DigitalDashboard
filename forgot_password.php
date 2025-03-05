@@ -30,10 +30,10 @@ Revisions:
 
 
         //Database connection details
-        $host = 'localhost';
-        $user = 'root';
-        $pass = 'mysql'; 
-        $dbname = 'csc450temp';
+        $host = '';
+        $user = '';
+        $pass = ''; 
+        $dbname = '';
 
         //Establish connection
         $conn = new mysqli($host, $user, $pass, $dbname);
