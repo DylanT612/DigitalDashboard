@@ -1,4 +1,185 @@
-<!-- 
+<?php
+    session_start();
+    if (!isset($_SESSION['username'])) {
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'usernot authenticated']);
+        exit();
+    }
+
+    // Database connection details
+    $host = 'sql313.byethost24.com';
+    $user = 'b24_38167825';
+    $pass = 'January24#';
+    $dbname = 'b24_38167825_dashboard';
+
+    $conn = new mysqli($host, $user, $pass, $dbname);
+
+    // If host, db, user, or pass is incorrect create error
+    if ($conn->connect_error) {
+        die("Failed to connect: " . $conn->connect_error);
+    }
+    
+    $sender_id = $_SESSION['user_id'] ?? null;
+    // For each action
+    if (isset($_GET['action']) || isset($_POST['action'])) {
+        // Set content type
+        header('Content-Type: application/json');
+
+        // If the action is check messages
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'check_messages') {
+            // Confirm user signed in
+            if (!isset($_SESSION['user_id'])) {
+                echo json_encode(['error' => 'User not logged in']);
+                exit;
+            }
+            
+            // Run query
+            $userId = $_SESSION['user_id'];
+            $query = "SELECT COUNT(*) as newMessages FROM messages WHERE receiver_id = ? AND seen = 0";
+            if ($stmt = $conn->prepare($query)) {
+                $stmt->bind_param("i", $userId);
+                $stmt->execute();
+                $result = $stmt->get_result()->fetch_assoc();
+
+                // Display messages
+                if ($result) {
+                    echo json_encode(['newMessages' => $result['newMessages']]);
+                } else {
+                    echo json_encode(['newMessages' => 0]);
+                }
+                $stmt->close();
+            } else {
+                echo json_encode(['error' => 'Query preparation failed: ' . $conn->error]);
+            }
+            exit;
+        }
+
+        // If action is search users
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'search_users' && isset($_GET['query'])) {
+            // Display 10 max usernames
+            $stmt = $conn->prepare("SELECT id, username FROM users WHERE username LIKE CONCAT('%', ?, '%') LIMIT 10");
+            $stmt->bind_param("s", $_GET['query']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            // Display results
+            if ($result->num_rows > 0) {
+                echo json_encode($result->fetch_all(MYSQLI_ASSOC));
+            } else {
+                echo json_encode(['message' => 'No users found']);
+            }
+            exit();
+        }
+
+        // If send message
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_message') {
+            // Get variables
+            $message = $_POST['message'];
+            $receiver_id = $_POST['receiver_id'];
+            $sender_id = $_SESSION['user_id'];
+            $seen = 1;
+            
+            $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message, seen) VALUES (?, ?, ?, ?)");
+            $stmt->bind_param("iisi", $sender_id, $receiver_id, $message, $seen);
+            
+            // Run query
+            if ($stmt->execute()) {
+                echo json_encode(['success' => true]);
+            } else {
+                echo json_encode(['error' => 'Failed to send message']);
+            }
+            exit();
+        }
+
+        // If action is get messages
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'get_messages' && isset($_GET['receiver_id'])) {
+            $receiver_id = $_GET['receiver_id'];
+            $sender_id = $_SESSION['user_id'];
+            $seen = 0;
+
+            $query = "SELECT m.message, u.username, m.sent_at 
+                    FROM messages m 
+                    JOIN users u ON m.sender_id = u.id 
+                    WHERE (m.sender_id = ? AND m.receiver_id = ?) 
+                    OR (m.sender_id = ? AND m.receiver_id = ?) 
+                    ORDER BY m.sent_at ASC";
+
+            $stmt = $conn->prepare($query);
+
+            if (!$stmt) {
+                echo json_encode(['error' => 'SQL Prepare Error', 'query' => $query, 'sql_error' => $conn->error]);
+                exit();
+            }
+
+            // Run get messages between users query
+            $stmt->bind_param("iiii", $sender_id, $receiver_id, $receiver_id, $sender_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            $messages = $result->fetch_all(MYSQLI_ASSOC);
+            
+            // Display messages
+            if (empty($messages)) {
+                echo json_encode(['error' => 'No messages found']);
+            } else {
+                echo json_encode($messages);
+            }
+            exit();
+        }
+        
+        // If message seen request 
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'mark_messages_seen') {
+            $receiver_id = $_SESSION['user_id'];
+            $sender_id = $_POST['sender_id'];
+            
+            
+            $query = "UPDATE messages
+                    SET seen = 1
+                    WHERE receiver_id = ? AND sender_id = ? AND seen = 0";
+
+            // Update message seen property
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("ii", $receiver_id, $sender_id);
+            $stmt->execute();
+
+            echo json_encode(["success" => true]);
+            exit();
+        } 
+
+        // If get unread users request
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'get_unread_users') {
+            $user_id = $_SESSION['user_id'];
+            
+            $query = "SELECT m.sender_id, u.username 
+                    FROM messages m
+                    JOIN users u ON m.sender_id = u.id
+                    WHERE m.receiver_id = ? 
+                    AND m.seen = 0
+                    GROUP BY m.sender_id";
+
+            // Find seen = 0 for users messages
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param("i", $user_id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            // Return users with messages seen = 0
+            $unreadUsers = [];
+            while ($row = $result->fetch_assoc()) {
+                $unreadUsers[] = [
+                    "id" => $row["sender_id"],
+                    "username" => $row["username"]
+                ];
+            }
+
+            echo json_encode($unreadUsers);
+            exit();
+        }
+    }
+?>
+
+<!DOCTYPE html>
+<!--
 Home Page (home)
 CSC 450 Capstone Final Project Byethost
 Dylan Theis: theisd@csp.edu
@@ -14,20 +195,17 @@ Revisions:
 02/14/25: Ty Steinbach added profile picture and dropdown menu for account settings, including styles
 02/16/25: Ty Steinbach changed the profile pic to be dynamic
 02/27/25: Ty Steinbach made the weather fetch dynamic with the user's stored info
+02/21/25: Dylan Theis wrote basic functions for future queries (searchUser, openChat, send button, loadMessages)
+02/22/25: Dylan Theis wrote event listeners for dragging chat window, closing chat X, 
+02/23/25: Dylan Theis wrote styles and PHP and confirmed workability
+02/28/25: Dylan Theis wrote scrollToBottom(), newMessageIndicator
+03/01/25: Dylan Theis wrote showChatNotifcation, checkForNewMessages and included PHP
+03/02/25: Dylan Theis wrote tested and confirmed workability
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
 NOMINATIM API for sourcing the coordinates for the weather data
 -->
-<?php 
-session_start();
-// Confirm login of user from index
-if (!isset($_SESSION['username'])) {
-    header("Location: index.php");
-    exit();
-}
-?>
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -229,64 +407,270 @@ if (!isset($_SESSION['username'])) {
 
 
     </style>
-    <?php 
-    
 
-    $host = '';
-    $user = '';
-    $pass = ''; 
-    $dbname = '';
+    <!-- Chat Style -->
+    <style>
+        /* User query dropdown */
+        #chatListContainer {
+            width: 150px;
+            background: white;
+            border: 1px solid #ccc;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            position: absolute;
+        }
+
+        /* Individual chat window header */
+        #chatHeader {
+            background-color: #007aff;
+            color: white;
+            padding: 2px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            border-radius: 3px;
+            cursor: grab;
+            text-align: center;
+            justify-content: center;
+            position: relative;
+            font-weight: bold;
+        }
+
+        #chatHeader:hover {
+            cursor: grab;
+        }
+
+        #chatHeader.on-click {
+            cursor: grabbing;
+        }
+
+        /* Close button */
+        #closeChat {
+            font-size: 20px;
+            cursor: pointer;
+            user-select: none;
+            color: red;
+            position: absolute;
+            right: 8px;
+        }
+
+        /* text area */
+        #messageArea {
+            margin: 2px;
+            max-height: 250px;
+            overflow-y: auto;
+            width: 90%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            position: relative;
+            overflow-y: auto;
+            z-index: 1;
+        }
+
+        #messageArea p {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+
+        #messageInput {
+            width: 90%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        /* Each item in the dropdown */
+        .chat-list-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        .chat-list-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        #individualChatWindow {
+            width: 300px;
+            max-height: 80vh;
+            background-color: white;
+            position: absolute;
+            top: 20px;
+            right: 300px;
+            display: none;
+            border: 3px solid black;
+            border-radius: 5px;
+            display: none;
+            z-index: 100;
+        }
+
+        #messageCenter #chatApp{
+            height: 50px;
+            width: 50px;
+            right: 120px;
+            top: 25px;
+            position: absolute;
+        }
+
+        #newMessageIndicator {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            display: none;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+        }
+
+        .message {
+            font-size: 16px;
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            word-wrap: break-word;
+            display: inline-block;
+            max-width: 70%;
+            display: flex;
+        }
+
+        .user-message {
+            background-color: #007aff;
+            color: white;
+            text-align: right;
+            margin-left: auto;
+            max-width: fit-content;
+        }
+
+        .other-message {
+            background-color: lightgray;
+            color: black;
+            text-align: left;
+            margin-right: auto;
+            max-width: fit-content;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: red;
+            color: white;
+            font-size: 12px;
+            padding: 4px 6px;
+            border-radius: 50%;
+            display: none;
+        }
+
+        .new-message {
+            background-color: red;
+            color: white;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+
+        #chatWindowContainer {
+            display: none;
+            right: 200px;
+            top: 25px;
+            position: absolute;
+            z-index: 1001;
+        }
+
+        #chatWindowContainer.open {
+            display: block;
+        }
+
+        #searchUser {
+            display: block !important;
+        }
+
+    </style>
+
+
+    <?php
+    session_start();
+    // Database connection details
+    $host = 'sql313.byethost24.com';
+    $user = 'b24_38167825';
+    $pass = 'January24#';
+    $dbname = 'b24_38167825_dashboard';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
-
-
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
-    }
-
-    // If host, db, user, or pass is incorrect create error
-    if ($conn->connect_error) {
-        die("Failed to connect: " . $conn->connect_error);
-    }
-
-    //Selects appropriate transaction and makes sure the data stays in its input elements
-
-    $sql = "SELECT * FROM users WHERE username = ? LIMIT 1";
     
+    if ($conn->connect_error) {
+        die(json_encode(["error" => "Database connection failed"]));
+    }
+    // Ensure user is logged in
+    if (!isset($_SESSION['username']) || empty($_SESSION['username'])) {
+        die("User not authenticated.");
+    }
+    // Prepare the SQL query
+    $sql = "SELECT * FROM users WHERE username = ? LIMIT 1";
     // Set up a prepared statement
-    if($stmt = $conn->prepare($sql)) {
-
-        // Pass the parameters
+    if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("s", $_SESSION['username']);
-
-        if($stmt->errno) {
-            print_r("stmt prepare( ) had error."); 
+        // Check for statement errors
+        if ($stmt->errno) {
+            die("Statement prepare() error: " . $stmt->error);
         }
-
-        // Execute the query
-        $stmt->execute();
-        if($stmt->errno) {
-            print_r("Could not execute prepared statement");
+        // Execute the statement
+        if (!$stmt->execute()) {
+            die("Execution error: " . $stmt->error);
         }
-
-        // Fetch the results
+        // Fetch results
         $result = $stmt->get_result();
-
-        // Free results
-        $stmt->free_result( );
-        
-        // Close the statement
-        $stmt->close( );
-    } // end of if($conn->prepare($sql))
-
-    $row = $result->fetch_assoc();
-    $thisUser = [
-        "profile_picture" => $row["profile_picture"],
-        "city" => $row['city'],
-        "country" => $row['id_country'],
-        "state" => $row['id_state']
-    ];   
+        if (!$result) {
+            die("Query failed: " . $stmt->error);
+        }
+        $row = $result->fetch_assoc();
+        if (!$row) {
+            die("User not found.");
+        }
+        // Store user data
+        $thisUser = [
+            "profile_picture" => $row["profile_picture"],
+            "city" => $row['city'],
+            "country" => $row['country'],
+            "state" => $row['state']
+        ];
+        // Close the statement after fetching results
+        $stmt->close();
+    } else {
+        die("SQL Prepare Error: " . $conn->error);
+    }
+    // Close the database connection
+    $conn->close();
     ?>
+
+
+
+
+
+
     <script>
         var profileDisplayHandler = false;        
         async function handleWeather() {
@@ -601,7 +985,9 @@ if (!isset($_SESSION['username'])) {
         }
         //Event listener for clicking profile picture
     </script>
+
 </head>
+    
 
 <body>
     <header>
@@ -615,6 +1001,39 @@ if (!isset($_SESSION['username'])) {
         <div id="profNavUsername"><?php echo $_SESSION['username']; ?></div>
         <div class="profNav" id="profNavSettings">Account Settings</div>
     </nav>
+
+        <!-- Messaging Icon -->
+        <div id="messageCenter">
+        <img src="https://www.svgrepo.com/show/304507/messages.svg" id="chatApp" alt="Chatting Icon">
+    </div>
+
+    <!-- Main Chat Window -->
+    <div id="chatWindowContainer">
+        <div id="searchContainer">
+            <input type="text" id="searchUser" placeholder="Search User..." oninput="searchUsers()">
+            <ul id="userList">
+                <!-- Username new message notifcations appear here-->
+            </ul>
+
+        </div>
+
+        <div id="chatListContainer">
+            <!-- Dropdown of usernames matching query -->
+        </div>
+    </div>
+
+    <!-- Individual Chat Window -->
+    <div id="individualChatWindow">
+        <div id="chatHeader">
+            <p id="chatUsername"></p>
+            <p id="closeChat">✖</p>
+        </div>
+        <div id="messageArea"></div>
+            <div id="newMessageIndicator" onclick="scrollToBottom()">New Messages</div>
+
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button id="sendMessage">Send</button>
+    </div>
 
     <!-- Weather Display -->
     <aside id="weatherContainer" class="weather-container">
@@ -648,6 +1067,444 @@ if (!isset($_SESSION['username'])) {
 
         profileEvents();
     </script>
+
+     <!-- Messaging window Script -->
+    <script>
+    // Global variables that will be reused
+    let activeChatUser = null;
+    let lastMessageTimestamp = null;
+    
+    // Constants for session variables
+    const loggedInUserId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
+    const loggedInUsername = <?php echo json_encode($_SESSION['username'] ?? null); ?>;
+    
+    
+    
+    
+    // Chat search bar opens and closes
+    function toggleChatSearch() {
+        let chatSearch = document.getElementById('chatWindowContainer');
+        chatSearch.classList.toggle("open");
+    }
+
+    // Event listener to toggle open or close chat search bar based on chat icon click
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById("messageCenter").addEventListener("click", toggleChatSearch);
+    });
+
+    
+
+
+
+    // To make the chat window draggable
+    const chatWindow = document.getElementById("individualChatWindow");
+    const chatHeader = document.getElementById("chatHeader");
+
+    let isDragging = false;
+    let offsetX, offsetY;
+
+    // When the user clicks and drags the header (mousedown)
+    chatHeader.addEventListener("mousedown", function(e) {
+        // Prevent things like text selection while dragging
+        e.preventDefault();
+
+        // Make sure user mouse within the chatWindow
+        offsetX = e.clientX - chatWindow.getBoundingClientRect().left;
+        offsetY = e.clientY - chatWindow.getBoundingClientRect().top;
+
+        isDragging = true;
+
+        // Start dragging
+        function onMouseMove(e) {
+            if (isDragging) {
+                // Move the chat window with cursor
+                chatWindow.style.left = `${e.clientX - offsetX}px`;
+                chatWindow.style.top = `${e.clientY - offsetY}px`;
+            }
+        }
+
+        // Stop dragging
+        function onMouseUp() {
+            isDragging = false;
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+        }
+
+        // Event listeners for dragging/not dragging
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+    });
+
+ 
+    
+    
+    
+    // Check if you received new messages
+    function checkForNewMessages(userId) {
+    fetch(`home.php?action=get_messages&receiver_id=${userId}`)
+        .then(response => response.json())
+        .then(messages => {
+            // If json data for new messages is not in array form
+            if (!Array.isArray(messages)) {
+                return;
+            }
+            // Get the latest message
+            let latestMessage = messages[messages.length - 1];
+            // If no messages
+            if (!latestMessage) {
+                return;
+            }
+            // If received new message
+            if (lastMessageTimestamp && latestMessage.sent_at > lastMessageTimestamp && latestMessage.username !== loggedInUsername) {
+                showChatNotification();
+            }
+            // Update last message timestamp
+            lastMessageTimestamp = latestMessage.sent_at;
+        });
+    }
+
+    
+    
+    
+    
+    // To show a new chat notification
+    function showChatNotification() {
+        let chatApp = document.getElementById("chatApp");
+        let badge = document.getElementById("chatNotificationBadge");
+        // Show a notifcation in the chatApp
+        if (!badge) {
+            badge = document.createElement("span");
+            badge.id = "chatNotificationBadge";
+            badge.classList.add("notification-badge");
+            chatApp.appendChild(badge);
+        }
+        // Show notification
+        badge.style.display = "block";
+    }
+
+    
+
+    
+    
+    // Loading unread messages
+    function loadUnreadMessageUsers() {
+    fetch("home.php?action=get_unread_users")
+        .then(response => response.json())
+        .then(users => {
+            // Create a list of users that you have unread messages from
+            let userList = document.getElementById("userList");
+            userList.innerHTML = "";
+            // For each user
+            users.forEach(user => {
+                // Create a new list element in the unordered list
+                let userItem = document.createElement("li");
+                userItem.classList.add("userItem");
+                userItem.dataset.userId = user.id;
+                // Get the username and show a New Message banner
+                userItem.innerHTML = `${user.username} <span class="new-message">New Message</span>`;
+                showNewMessageIndicator();
+                // When clicking the list element be brought to the individual chat window with the user
+                userItem.addEventListener("click", () => openChat(user.id, user.username));
+                userList.appendChild(userItem);
+            });
+        })
+        .catch(error => {
+            console.error("Error loading unread users:", error)
+        });
+    }
+
+
+
+    
+    
+    // Display usernames
+    function searchUsers() {
+        // Adding letters to the query
+        let query = document.getElementById('searchUser').value;
+        if (query.length < 1) {
+            document.getElementById('chatListContainer').style.display = 'none';
+            return;
+        }
+
+        // PHP response getting usernames in the query
+        fetch(`home.php?action=search_users&query=${query}`)
+            .then(response => response.json())
+            .then(users => {
+                // Show the results of the query
+                let results = document.getElementById('chatListContainer');
+                if (!results) {
+                    console.error("chatListContainer not found");
+                    return;
+                }
+                // Start with clean results 
+                results.innerHTML = ''; 
+                results.style.display = 'block'; 
+
+                // If there are no results of the query
+                if (users.length === 0) {
+                    results.innerHTML = '<div class="chat-list-item">No users found</div>';
+                } else {
+                    // Otherwise for each user
+                    users.forEach(user => {
+                        // For each username in the query
+                        let div = document.createElement('div');
+                        div.classList.add('chat-list-item');
+                        // If clicking username in the query openchat with them
+                        div.onclick = () => openChat(user.id, user.username);
+                        // Create username and last message
+                        div.innerHTML = `
+                            <div class="chat-user">${user.username}</div>
+                            <div class="chat-message">Last message...</div>
+                        `;
+                        results.appendChild(div);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching users:", error);
+            });
+    }
+
+    
+    
+    
+    
+    // Listener for search bar
+    document.addEventListener('click', function(event) {
+        let searchBox = document.getElementById('searchUser');
+        let results = document.getElementById('chatListContainer');
+        // If clicking within the search box keep it open
+        if (searchBox.contains(event.target)) {
+            return;
+        } 
+        // If clicking on a username (userItem)
+        if (event.target.classList.contains('userItem')) {
+            // Close dropdown when selecting a username
+            results.style.display = 'none';
+            return; 
+        }
+        // Clicked outside both hide dropdown
+        results.style.display = 'none';
+    });
+
+
+
+    
+    
+    
+    // Opening chat with selected user
+    function openChat(userId, username) {
+        let chatContainer = document.getElementById('messageArea');
+        chatContainer.innerHTML = '<div class="error-message">No messages yet. Say Hello!</div>';
+        // Display who your chatting with username
+        let chatUsernameElement = document.getElementById('chatUsername');
+        if (chatUsernameElement) {
+            chatUsernameElement.innerText = username;
+        } else {
+            console.error('Error: chatUsername element not found.');
+        }
+        // Get your userId to mark as read
+        activeChatUser = userId;
+        document.getElementById('individualChatWindow').style.display = 'block';
+        // Load the messages from the user
+        loadMessages(userId);
+        // Mark the message as read and refresh your unread message users list
+        fetch("home.php?action=mark_messages_seen", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `action=mark_messages_seen&sender_id=${userId}`
+        }).then(() => loadUnreadMessageUsers());
+    }
+
+    
+
+    
+    
+    // Event listener to send message when clicking the send button
+    document.getElementById('sendMessage').addEventListener('click', function () {
+        // Get the message you are sending
+        let message = document.getElementById('messageInput').value;
+        if (message.trim() === "" || !activeChatUser) {
+            return;
+        }
+        // PHP request to send the message to the receiver from the sender
+        fetch('home.php?action=send_message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=send_message&message=${encodeURIComponent(message)}&receiver_id=${encodeURIComponent(activeChatUser)}&sender_id=${encodeURIComponent(loggedInUserId)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Message sent successfully clear input else error
+            if (data.success) {
+                loadMessages(activeChatUser);
+                document.getElementById('messageInput').value = '';
+            } else {
+                alert('Failed to send message: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            alert('Error sending message: ' + error);
+        });
+    });
+
+
+
+
+    
+    
+    // Load messages from user
+    function loadMessages(userId) {
+        // PHP request for messages from the chatter
+        fetch(`home.php?action=get_messages&receiver_id=${userId}`)
+            .then(response => response.json())
+            .then(messages => {
+                // If json response messages not in array form
+                if (!Array.isArray(messages)) {
+                    console.error("Expected 'messages' to be an array, but got:", messages);
+                    return;
+                }
+                // Load messages in messageArea
+                let chatContainer = document.getElementById('messageArea');
+                if (!chatContainer) {
+                    return;
+                }
+                // Find where user is in chat logs and if they are at the bottom 
+                let isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
+
+                chatContainer.innerHTML = '';
+
+                // For each message
+                messages.forEach(message => {
+                    let messageDiv = document.createElement('div');
+                    messageDiv.classList.add('message');
+
+                    // If the message is from the sender apply sender style
+                    if (message.username === loggedInUsername) {
+                        messageDiv.classList.add('user-message');
+                    } else {
+                        // Otherwise apply receiver style
+                        messageDiv.classList.add('other-message');
+                    }
+                    // Display the message
+                    messageDiv.innerText = message.message;
+                    chatContainer.appendChild(messageDiv);
+                });
+
+                // Set the lastMessageTimestamp to the last message
+                // If first message
+                if (lastMessageTimestamp === null && messages.length > 0) {
+                    lastMessageTimestamp = messages[messages.length - 1].sent_at;
+                    // If not first message
+                } else if (lastMessageTimestamp !== null) {
+                    // Check for more recent messages
+                    let newMessages = messages.filter(message => message.sent_at > lastMessageTimestamp);
+                    // If received new message and user is in the middle of chat logs show new message
+                    if (newMessages.length > 0 && !isAtBottom) {
+                        showNewMessageIndicator();
+                    }
+
+                    // Update the lastMessageTimestamp
+                    lastMessageTimestamp = messages[messages.length - 1].sent_at;
+                }
+
+                // If message comes in while user is at the bottom of chat logs scroll to bottom
+                if (isAtBottom) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            })
+            .catch(error => {
+                // If messageArea has no messages 
+                console.error("Error loading messages:", error);
+            });
+    }
+
+    
+    
+    
+
+    // Showing new message indicator
+    function showNewMessageIndicator() {
+        let indicator = document.getElementById('newMessageIndicator');
+        if (indicator) {
+            indicator.style.display = 'block';
+        }
+    }
+
+    // Hide new message indicator
+    function hideNewMessageIndicator() {
+        let indicator = document.getElementById('newMessageIndicator');
+        if (indicator) {
+            indicator.style.display = 'none';
+        }
+    }
+
+
+
+
+    // When clicking 'X' in chat header close chat
+    document.getElementById('closeChat').addEventListener('click', function () {
+        document.getElementById('individualChatWindow').style.display = 'none';
+    });
+
+    
+    // If there are no messages in the messageArea
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatMessages = document.getElementById('messageArea');
+        // Display prompt
+        if (chatMessages) {
+            chatMessages.innerHTML = '<div class="error-message">No messages yet. Say Hello!</div>';
+        }
+    });
+    
+    
+
+   
+    
+
+    // Scroll to bottom of chat logs and hide notfication
+    function scrollToBottom() {
+        let chatContainer = document.getElementById('messageArea');
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        // Scrolling to bottom marks messages as seen
+        fetch("home.php?action=mark_messages_seen", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `action=mark_messages_seen&sender_id=${activeChatUser}`
+        }).then(() => loadUnreadMessageUsers());
+        hideNewMessageIndicator();
+        
+    }
+    // Scroll the user to the bottom
+    document.getElementById('messageArea').addEventListener('scroll', function () {
+        let chatContainer = this;
+        if (chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50) {
+            hideNewMessageIndicator();
+        }
+    });
+
+
+    
+    
+    // Call checkForNewMessages every 10 seconds
+    setInterval(() => {
+        if (activeChatUser) {
+            checkForNewMessages(activeChatUser);
+        }
+    }, 10000);
+
+    // Auto-refresh unread users list every 10 seconds
+    setInterval(loadUnreadMessageUsers, 10000);
+
+    // Load messages every 10 seconds
+    setInterval(() => {
+        if (activeChatUser) {
+            loadMessages(activeChatUser);
+        }
+    }, 10000);
+    
+</script>
+
 
 </body>
 
