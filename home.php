@@ -201,6 +201,9 @@ Revisions:
 02/28/25: Dylan Theis wrote scrollToBottom(), newMessageIndicator
 03/01/25: Dylan Theis wrote showChatNotifcation, checkForNewMessages and included PHP
 03/02/25: Dylan Theis wrote tested and confirmed workability
+03/14/25: Dylan Theis added friending div 
+03/15/25: Dylan Theis added friending badge for users who are friends
+03/16/25: Dylan Theis added styles to friending div
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
@@ -340,7 +343,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         /* Weather container color based on what time it is */
         .morning { background: blue; }
         .afternoon { background: light blue; }
-        .evening { background: dark blue; }
+        .evening { background: darkblue; }
         .night { background: darkslateblue; }
 
         /* Weather Details */
@@ -606,6 +609,62 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         #searchUser {
             display: block !important;
+        }
+        #userList {
+            margin: 3px;
+        }
+
+    </style>
+
+    <!-- Friend Style -->
+    <style>
+        .dropdown {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .dropdown.show {
+            display: block;
+        }
+        #friendsIndicator {
+            height: 20px;
+            width: 20px;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: -5px;
+        }
+        #friendRequestButton {
+            margin: 2px;
+            padding: 3px;
+        }
+        #friendFinder {
+            float: left;
+            margin: 5px;
+            padding: 0px 10px 5px 15px;
+            border-radius: 25px;
+            background-color: violet;
+            border-color: darkviolet;
+            border-width: 5px;
+            border-style: solid;
+            width: 200px;
+        }
+        #acceptButton {
+            background-color: springgreen;
+            margin: 3px;
+            padding: 3px;
+        }
+        #declineButton {
+            background-color: red;
+            margin: 3px;
+            padding: 3px;
+        }
+        #friendFinder h3, p {
+            margin: 0px 0px 0px 0px;
+        }
+        #friendFinder input {
+            background-color: pink;
         }
 
     </style>
@@ -1034,6 +1093,18 @@ NOMINATIM API for sourcing the coordinates for the weather data
         <input type="text" id="messageInput" placeholder="Type a message...">
         <button id="sendMessage">Send</button>
     </div>
+    
+    <!-- Add Friends div-->
+    <div id="friendFinder">
+        <h3>Search for friends</h3>
+        <input type="text" id="searchInput" placeholder="Add Friends...">
+
+        <div id="searchResults" class="dropdown"></div>
+        <h3>Friend Requests</h3>
+        <div id="friendRequests"></div>
+        <h3>Your Friends</h3>
+        <div id="friendsList"></div>
+    </div>
 
     <!-- Weather Display -->
     <aside id="weatherContainer" class="weather-container">
@@ -1068,442 +1139,592 @@ NOMINATIM API for sourcing the coordinates for the weather data
         profileEvents();
     </script>
 
-     <!-- Messaging window Script -->
+    <!-- Messaging window Script -->
     <script>
-    // Global variables that will be reused
-    let activeChatUser = null;
-    let lastMessageTimestamp = null;
-    
-    // Constants for session variables
-    const loggedInUserId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
-    const loggedInUsername = <?php echo json_encode($_SESSION['username'] ?? null); ?>;
-    
-    
-    
-    
-    // Chat search bar opens and closes
-    function toggleChatSearch() {
-        let chatSearch = document.getElementById('chatWindowContainer');
-        chatSearch.classList.toggle("open");
-    }
-
-    // Event listener to toggle open or close chat search bar based on chat icon click
-    document.addEventListener("DOMContentLoaded", function() {
-        document.getElementById("messageCenter").addEventListener("click", toggleChatSearch);
-    });
-
-    
-
-
-
-    // To make the chat window draggable
-    const chatWindow = document.getElementById("individualChatWindow");
-    const chatHeader = document.getElementById("chatHeader");
-
-    let isDragging = false;
-    let offsetX, offsetY;
-
-    // When the user clicks and drags the header (mousedown)
-    chatHeader.addEventListener("mousedown", function(e) {
-        // Prevent things like text selection while dragging
-        e.preventDefault();
-
-        // Make sure user mouse within the chatWindow
-        offsetX = e.clientX - chatWindow.getBoundingClientRect().left;
-        offsetY = e.clientY - chatWindow.getBoundingClientRect().top;
-
-        isDragging = true;
-
-        // Start dragging
-        function onMouseMove(e) {
-            if (isDragging) {
-                // Move the chat window with cursor
-                chatWindow.style.left = `${e.clientX - offsetX}px`;
-                chatWindow.style.top = `${e.clientY - offsetY}px`;
-            }
+        // Global variables that will be reused
+        let activeChatUser = null;
+        let lastMessageTimestamp = null;
+        
+        // Constants for session variables
+        const loggedInUserId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
+        const loggedInUsername = <?php echo json_encode($_SESSION['username'] ?? null); ?>;
+        
+        
+        
+        
+        // Chat search bar opens and closes
+        function toggleChatSearch() {
+            let chatSearch = document.getElementById('chatWindowContainer');
+            chatSearch.classList.toggle("open");
         }
 
-        // Stop dragging
-        function onMouseUp() {
-            isDragging = false;
-            document.removeEventListener("mousemove", onMouseMove);
-            document.removeEventListener("mouseup", onMouseUp);
-        }
-
-        // Event listeners for dragging/not dragging
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
-    });
-
- 
-    
-    
-    
-    // Check if you received new messages
-    function checkForNewMessages(userId) {
-    fetch(`home.php?action=get_messages&receiver_id=${userId}`)
-        .then(response => response.json())
-        .then(messages => {
-            // If json data for new messages is not in array form
-            if (!Array.isArray(messages)) {
-                return;
-            }
-            // Get the latest message
-            let latestMessage = messages[messages.length - 1];
-            // If no messages
-            if (!latestMessage) {
-                return;
-            }
-            // If received new message
-            if (lastMessageTimestamp && latestMessage.sent_at > lastMessageTimestamp && latestMessage.username !== loggedInUsername) {
-                showChatNotification();
-            }
-            // Update last message timestamp
-            lastMessageTimestamp = latestMessage.sent_at;
+        // Event listener to toggle open or close chat search bar based on chat icon click
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementById("messageCenter").addEventListener("click", toggleChatSearch);
         });
-    }
 
-    
-    
-    
-    
-    // To show a new chat notification
-    function showChatNotification() {
-        let chatApp = document.getElementById("chatApp");
-        let badge = document.getElementById("chatNotificationBadge");
-        // Show a notifcation in the chatApp
-        if (!badge) {
-            badge = document.createElement("span");
-            badge.id = "chatNotificationBadge";
-            badge.classList.add("notification-badge");
-            chatApp.appendChild(badge);
-        }
-        // Show notification
-        badge.style.display = "block";
-    }
-
-    
-
-    
-    
-    // Loading unread messages
-    function loadUnreadMessageUsers() {
-    fetch("home.php?action=get_unread_users")
-        .then(response => response.json())
-        .then(users => {
-            // Create a list of users that you have unread messages from
-            let userList = document.getElementById("userList");
-            userList.innerHTML = "";
-            // For each user
-            users.forEach(user => {
-                // Create a new list element in the unordered list
-                let userItem = document.createElement("li");
-                userItem.classList.add("userItem");
-                userItem.dataset.userId = user.id;
-                // Get the username and show a New Message banner
-                userItem.innerHTML = `${user.username} <span class="new-message">New Message</span>`;
-                showNewMessageIndicator();
-                // When clicking the list element be brought to the individual chat window with the user
-                userItem.addEventListener("click", () => openChat(user.id, user.username));
-                userList.appendChild(userItem);
-            });
-        })
-        .catch(error => {
-            console.error("Error loading unread users:", error)
-        });
-    }
+        
 
 
 
-    
-    
-    // Display usernames
-    function searchUsers() {
-        // Adding letters to the query
-        let query = document.getElementById('searchUser').value;
-        if (query.length < 1) {
-            document.getElementById('chatListContainer').style.display = 'none';
-            return;
-        }
+        // To make the chat window draggable
+        const chatWindow = document.getElementById("individualChatWindow");
+        const chatHeader = document.getElementById("chatHeader");
 
-        // PHP response getting usernames in the query
-        fetch(`home.php?action=search_users&query=${query}`)
-            .then(response => response.json())
-            .then(users => {
-                // Show the results of the query
-                let results = document.getElementById('chatListContainer');
-                if (!results) {
-                    console.error("chatListContainer not found");
-                    return;
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        // When the user clicks and drags the header (mousedown)
+        chatHeader.addEventListener("mousedown", function(e) {
+            // Prevent things like text selection while dragging
+            e.preventDefault();
+
+            // Make sure user mouse within the chatWindow
+            offsetX = e.clientX - chatWindow.getBoundingClientRect().left;
+            offsetY = e.clientY - chatWindow.getBoundingClientRect().top;
+
+            isDragging = true;
+
+            // Start dragging
+            function onMouseMove(e) {
+                if (isDragging) {
+                    // Move the chat window with cursor
+                    chatWindow.style.left = `${e.clientX - offsetX}px`;
+                    chatWindow.style.top = `${e.clientY - offsetY}px`;
                 }
-                // Start with clean results 
-                results.innerHTML = ''; 
-                results.style.display = 'block'; 
-
-                // If there are no results of the query
-                if (users.length === 0) {
-                    results.innerHTML = '<div class="chat-list-item">No users found</div>';
-                } else {
-                    // Otherwise for each user
-                    users.forEach(user => {
-                        // For each username in the query
-                        let div = document.createElement('div');
-                        div.classList.add('chat-list-item');
-                        // If clicking username in the query openchat with them
-                        div.onclick = () => openChat(user.id, user.username);
-                        // Create username and last message
-                        div.innerHTML = `
-                            <div class="chat-user">${user.username}</div>
-                            <div class="chat-message">Last message...</div>
-                        `;
-                        results.appendChild(div);
-                    });
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching users:", error);
-            });
-    }
-
-    
-    
-    
-    
-    // Listener for search bar
-    document.addEventListener('click', function(event) {
-        let searchBox = document.getElementById('searchUser');
-        let results = document.getElementById('chatListContainer');
-        // If clicking within the search box keep it open
-        if (searchBox.contains(event.target)) {
-            return;
-        } 
-        // If clicking on a username (userItem)
-        if (event.target.classList.contains('userItem')) {
-            // Close dropdown when selecting a username
-            results.style.display = 'none';
-            return; 
-        }
-        // Clicked outside both hide dropdown
-        results.style.display = 'none';
-    });
-
-
-
-    
-    
-    
-    // Opening chat with selected user
-    function openChat(userId, username) {
-        let chatContainer = document.getElementById('messageArea');
-        chatContainer.innerHTML = '<div class="error-message">No messages yet. Say Hello!</div>';
-        // Display who your chatting with username
-        let chatUsernameElement = document.getElementById('chatUsername');
-        if (chatUsernameElement) {
-            chatUsernameElement.innerText = username;
-        } else {
-            console.error('Error: chatUsername element not found.');
-        }
-        // Get your userId to mark as read
-        activeChatUser = userId;
-        document.getElementById('individualChatWindow').style.display = 'block';
-        // Load the messages from the user
-        loadMessages(userId);
-        // Mark the message as read and refresh your unread message users list
-        fetch("home.php?action=mark_messages_seen", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `action=mark_messages_seen&sender_id=${userId}`
-        }).then(() => loadUnreadMessageUsers());
-    }
-
-    
-
-    
-    
-    // Event listener to send message when clicking the send button
-    document.getElementById('sendMessage').addEventListener('click', function () {
-        // Get the message you are sending
-        let message = document.getElementById('messageInput').value;
-        if (message.trim() === "" || !activeChatUser) {
-            return;
-        }
-        // PHP request to send the message to the receiver from the sender
-        fetch('home.php?action=send_message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `action=send_message&message=${encodeURIComponent(message)}&receiver_id=${encodeURIComponent(activeChatUser)}&sender_id=${encodeURIComponent(loggedInUserId)}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Message sent successfully clear input else error
-            if (data.success) {
-                loadMessages(activeChatUser);
-                document.getElementById('messageInput').value = '';
-            } else {
-                alert('Failed to send message: ' + (data.error || 'Unknown error'));
             }
-        })
-        .catch(error => {
-            alert('Error sending message: ' + error);
+
+            // Stop dragging
+            function onMouseUp() {
+                isDragging = false;
+                document.removeEventListener("mousemove", onMouseMove);
+                document.removeEventListener("mouseup", onMouseUp);
+            }
+
+            // Event listeners for dragging/not dragging
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
         });
-    });
-
-
-
 
     
-    
-    // Load messages from user
-    function loadMessages(userId) {
-        // PHP request for messages from the chatter
+        
+        
+        
+        // Check if you received new messages
+        function checkForNewMessages(userId) {
         fetch(`home.php?action=get_messages&receiver_id=${userId}`)
             .then(response => response.json())
             .then(messages => {
-                // If json response messages not in array form
+                // If json data for new messages is not in array form
                 if (!Array.isArray(messages)) {
-                    console.error("Expected 'messages' to be an array, but got:", messages);
                     return;
                 }
-                // Load messages in messageArea
-                let chatContainer = document.getElementById('messageArea');
-                if (!chatContainer) {
+                // Get the latest message
+                let latestMessage = messages[messages.length - 1];
+                // If no messages
+                if (!latestMessage) {
                     return;
                 }
-                // Find where user is in chat logs and if they are at the bottom 
-                let isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
+                // If received new message
+                if (lastMessageTimestamp && latestMessage.sent_at > lastMessageTimestamp && latestMessage.username !== loggedInUsername) {
+                    showChatNotification();
+                }
+                // Update last message timestamp
+                lastMessageTimestamp = latestMessage.sent_at;
+            });
+        }
 
-                chatContainer.innerHTML = '';
+        
+        
+        
+        
+        // To show a new chat notification
+        function showChatNotification() {
+            let chatApp = document.getElementById("chatApp");
+            let badge = document.getElementById("chatNotificationBadge");
+            // Show a notifcation in the chatApp
+            if (!badge) {
+                badge = document.createElement("span");
+                badge.id = "chatNotificationBadge";
+                badge.classList.add("notification-badge");
+                chatApp.appendChild(badge);
+            }
+            // Show notification
+            badge.style.display = "block";
+        }
 
-                // For each message
-                messages.forEach(message => {
-                    let messageDiv = document.createElement('div');
-                    messageDiv.classList.add('message');
+        
 
-                    // If the message is from the sender apply sender style
-                    if (message.username === loggedInUsername) {
-                        messageDiv.classList.add('user-message');
-                    } else {
-                        // Otherwise apply receiver style
-                        messageDiv.classList.add('other-message');
-                    }
-                    // Display the message
-                    messageDiv.innerText = message.message;
-                    chatContainer.appendChild(messageDiv);
+        
+        
+        // Loading unread messages
+        function loadUnreadMessageUsers() {
+            fetch("home.php?action=get_unread_users")
+                .then(response => response.json())
+                .then(users => {
+                    // Create a list of users that you have unread messages from
+                    let userList = document.getElementById("userList");
+                    userList.innerHTML = "";
+                    fetch("/get_friends.php")
+                        .then(response => response.json())
+                        .then(friends => {
+                            // For each user
+                            users.forEach(user => {
+                                // Create a new list element in the unordered list
+                                let userItem = document.createElement("li");
+                                userItem.classList.add("userItem");
+                                userItem.dataset.userId = user.id;
+
+                                // Get the username and show a New Message banner
+                                if (friends.includes(user.id)) {
+                                    userItem.innerHTML = `${user.username} <img src="uploads/friend.svg" alt="friends" id="friendsIndicator"><span class="new-message">New Message</span>`;
+                                } else {
+                                    userItem.innerHTML = `${user.username} <span class="new-message">New Message</span>`;
+                                }
+
+                                showNewMessageIndicator();
+                                // When clicking the list element be brought to the individual chat window with the user
+                                userItem.addEventListener("click", () => openChat(user.id, user.username));
+                                userList.appendChild(userItem);
+                            });
+                        })
+                        .catch(error => {
+                            console.error("Error getting friends list:", error)
+                        });
+                    })
+                .catch(error => {
+                    console.error("Error loading unread users:", error)
                 });
+        }
 
-                // Set the lastMessageTimestamp to the last message
-                // If first message
-                if (lastMessageTimestamp === null && messages.length > 0) {
-                    lastMessageTimestamp = messages[messages.length - 1].sent_at;
-                    // If not first message
-                } else if (lastMessageTimestamp !== null) {
-                    // Check for more recent messages
-                    let newMessages = messages.filter(message => message.sent_at > lastMessageTimestamp);
-                    // If received new message and user is in the middle of chat logs show new message
-                    if (newMessages.length > 0 && !isAtBottom) {
-                        showNewMessageIndicator();
+
+
+
+        
+        
+        // Display usernames
+        function searchUsers() {
+            // Adding letters to the query
+            let query = document.getElementById('searchUser').value;
+            if (query.length < 1) {
+                document.getElementById('chatListContainer').style.display = 'none';
+                return;
+            }
+
+            // PHP response getting usernames in the query
+            fetch(`home.php?action=search_users&query=${query}`)
+                .then(response => response.json())
+                .then(users => {
+                    // Show the results of the query
+                    let results = document.getElementById('chatListContainer');
+                    if (!results) {
+                        console.error("chatListContainer not found");
+                        return;
                     }
+                    // Start with clean results 
+                    results.innerHTML = ''; 
+                    results.style.display = 'block'; 
 
-                    // Update the lastMessageTimestamp
-                    lastMessageTimestamp = messages[messages.length - 1].sent_at;
-                }
+                    // If there are no results of the query
+                    if (users.length === 0) {
+                        results.innerHTML = '<div class="chat-list-item">No users found</div>';
+                    } else {
+                        // Otherwise for each user
+                        users.forEach(user => {
+                            // For each username in the query
+                            let div = document.createElement('div');
+                            div.classList.add('chat-list-item');
+                            // If clicking username in the query openchat with them
+                            div.onclick = () => openChat(user.id, user.username);
+                            // Create username and last message
+                            div.innerHTML = `
+                                <div class="chat-user">${user.username}</div>
+                                <div class="chat-message">Last message...</div>
+                            `;
+                            results.appendChild(div);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching users:", error);
+                });
+        }
 
-                // If message comes in while user is at the bottom of chat logs scroll to bottom
-                if (isAtBottom) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        
+        
+        
+        // Listener for search bar
+        document.addEventListener('click', function(event) {
+            let searchBox = document.getElementById('searchUser');
+            let results = document.getElementById('chatListContainer');
+            // If clicking within the search box keep it open
+            if (searchBox.contains(event.target)) {
+                return;
+            } 
+            // If clicking on a username (userItem)
+            if (event.target.classList.contains('userItem')) {
+                // Close dropdown when selecting a username
+                results.style.display = 'none';
+                return; 
+            }
+            // Clicked outside both hide dropdown
+            results.style.display = 'none';
+        });
+
+
+
+        
+        
+        
+        // Opening chat with selected user
+        function openChat(userId, username) {
+            let chatContainer = document.getElementById('messageArea');
+            chatContainer.innerHTML = '<div class="error-message">No messages yet. Say Hello!</div>';
+            // Display who your chatting with username
+            let chatUsernameElement = document.getElementById('chatUsername');
+            if (chatUsernameElement) {
+                chatUsernameElement.innerText = username;
+            } else {
+                console.error('Error: chatUsername element not found.');
+            }
+            // Get your userId to mark as read
+            activeChatUser = userId;
+            document.getElementById('individualChatWindow').style.display = 'block';
+            // Load the messages from the user
+            loadMessages(userId);
+            // Mark the message as read and refresh your unread message users list
+            fetch("home.php?action=mark_messages_seen", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=mark_messages_seen&sender_id=${userId}`
+            }).then(() => loadUnreadMessageUsers());
+        }
+
+        
+
+        
+        
+        // Event listener to send message when clicking the send button
+        document.getElementById('sendMessage').addEventListener('click', function () {
+            // Get the message you are sending
+            let message = document.getElementById('messageInput').value;
+            if (message.trim() === "" || !activeChatUser) {
+                return;
+            }
+            // PHP request to send the message to the receiver from the sender
+            fetch('home.php?action=send_message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=send_message&message=${encodeURIComponent(message)}&receiver_id=${encodeURIComponent(activeChatUser)}&sender_id=${encodeURIComponent(loggedInUserId)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Message sent successfully clear input else error
+                if (data.success) {
+                    loadMessages(activeChatUser);
+                    document.getElementById('messageInput').value = '';
+                } else {
+                    alert('Failed to send message: ' + (data.error || 'Unknown error'));
                 }
             })
             .catch(error => {
-                // If messageArea has no messages 
-                console.error("Error loading messages:", error);
+                alert('Error sending message: ' + error);
             });
-    }
-
-    
-    
-    
-
-    // Showing new message indicator
-    function showNewMessageIndicator() {
-        let indicator = document.getElementById('newMessageIndicator');
-        if (indicator) {
-            indicator.style.display = 'block';
-        }
-    }
-
-    // Hide new message indicator
-    function hideNewMessageIndicator() {
-        let indicator = document.getElementById('newMessageIndicator');
-        if (indicator) {
-            indicator.style.display = 'none';
-        }
-    }
+        });
 
 
 
 
-    // When clicking 'X' in chat header close chat
-    document.getElementById('closeChat').addEventListener('click', function () {
-        document.getElementById('individualChatWindow').style.display = 'none';
-    });
-
-    
-    // If there are no messages in the messageArea
-    document.addEventListener('DOMContentLoaded', function() {
-        const chatMessages = document.getElementById('messageArea');
-        // Display prompt
-        if (chatMessages) {
-            chatMessages.innerHTML = '<div class="error-message">No messages yet. Say Hello!</div>';
-        }
-    });
-    
-    
-
-   
-    
-
-    // Scroll to bottom of chat logs and hide notfication
-    function scrollToBottom() {
-        let chatContainer = document.getElementById('messageArea');
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        // Scrolling to bottom marks messages as seen
-        fetch("home.php?action=mark_messages_seen", {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: `action=mark_messages_seen&sender_id=${activeChatUser}`
-        }).then(() => loadUnreadMessageUsers());
-        hideNewMessageIndicator();
         
-    }
-    // Scroll the user to the bottom
-    document.getElementById('messageArea').addEventListener('scroll', function () {
-        let chatContainer = this;
-        if (chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50) {
+        
+        // Load messages from user
+        function loadMessages(userId) {
+            // PHP request for messages from the chatter
+            fetch(`home.php?action=get_messages&receiver_id=${userId}`)
+                .then(response => response.json())
+                .then(messages => {
+                    // If json response messages not in array form
+                    if (!Array.isArray(messages)) {
+                        console.error("Expected 'messages' to be an array, but got:", messages);
+                        return;
+                    }
+                    // Load messages in messageArea
+                    let chatContainer = document.getElementById('messageArea');
+                    if (!chatContainer) {
+                        return;
+                    }
+                    // Find where user is in chat logs and if they are at the bottom 
+                    let isAtBottom = chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50;
+
+                    chatContainer.innerHTML = '';
+
+                    // For each message
+                    messages.forEach(message => {
+                        let messageDiv = document.createElement('div');
+                        messageDiv.classList.add('message');
+
+                        // If the message is from the sender apply sender style
+                        if (message.username === loggedInUsername) {
+                            messageDiv.classList.add('user-message');
+                        } else {
+                            // Otherwise apply receiver style
+                            messageDiv.classList.add('other-message');
+                        }
+                        // Display the message
+                        messageDiv.innerText = message.message;
+                        chatContainer.appendChild(messageDiv);
+                    });
+
+                    // Set the lastMessageTimestamp to the last message
+                    // If first message
+                    if (lastMessageTimestamp === null && messages.length > 0) {
+                        lastMessageTimestamp = messages[messages.length - 1].sent_at;
+                        // If not first message
+                    } else if (lastMessageTimestamp !== null) {
+                        // Check for more recent messages
+                        let newMessages = messages.filter(message => message.sent_at > lastMessageTimestamp);
+                        // If received new message and user is in the middle of chat logs show new message
+                        if (newMessages.length > 0 && !isAtBottom) {
+                            showNewMessageIndicator();
+                        }
+
+                        // Update the lastMessageTimestamp
+                        lastMessageTimestamp = messages[messages.length - 1].sent_at;
+                    }
+
+                    // If message comes in while user is at the bottom of chat logs scroll to bottom
+                    if (isAtBottom) {
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+                })
+                .catch(error => {
+                    // If messageArea has no messages 
+                    console.error("Error loading messages:", error);
+                });
+        }
+
+        
+        
+        
+
+        // Showing new message indicator
+        function showNewMessageIndicator() {
+            let indicator = document.getElementById('newMessageIndicator');
+            if (indicator) {
+                indicator.style.display = 'block';
+            }
+        }
+
+        // Hide new message indicator
+        function hideNewMessageIndicator() {
+            let indicator = document.getElementById('newMessageIndicator');
+            if (indicator) {
+                indicator.style.display = 'none';
+            }
+        }
+
+
+
+
+        // When clicking 'X' in chat header close chat
+        document.getElementById('closeChat').addEventListener('click', function () {
+            document.getElementById('individualChatWindow').style.display = 'none';
+        });
+
+        
+        // If there are no messages in the messageArea
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('messageArea');
+            // Display prompt
+            if (chatMessages) {
+                chatMessages.innerHTML = '<div class="error-message">No messages yet. Say Hello!</div>';
+            }
+        });
+        
+        
+
+    
+        
+
+        // Scroll to bottom of chat logs and hide notfication
+        function scrollToBottom() {
+            let chatContainer = document.getElementById('messageArea');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Scrolling to bottom marks messages as seen
+            fetch("home.php?action=mark_messages_seen", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `action=mark_messages_seen&sender_id=${activeChatUser}`
+            }).then(() => loadUnreadMessageUsers());
             hideNewMessageIndicator();
+            
         }
-    });
+        // Scroll the user to the bottom
+        document.getElementById('messageArea').addEventListener('scroll', function () {
+            let chatContainer = this;
+            if (chatContainer.scrollHeight - chatContainer.scrollTop <= chatContainer.clientHeight + 50) {
+                hideNewMessageIndicator();
+            }
+        });
 
 
+        
+        
+        // Call checkForNewMessages every 10 seconds
+        setInterval(() => {
+            if (activeChatUser) {
+                checkForNewMessages(activeChatUser);
+            }
+        }, 2000);
+
+        // Auto-refresh unread users list every 10 seconds
+        setInterval(loadUnreadMessageUsers, 2000);
+
+        // Load messages every 10 seconds
+        setInterval(() => {
+            if (activeChatUser) {
+                loadMessages(activeChatUser);
+            }
+        }, 2000);
+        
+    </script>
     
-    
-    // Call checkForNewMessages every 10 seconds
-    setInterval(() => {
-        if (activeChatUser) {
-            checkForNewMessages(activeChatUser);
+    <!-- Friending JS -->
+    <script>
+        // Reuse search_users chatting feature to get username dropdown
+        document.getElementById('searchInput').addEventListener('input', function() {
+        // Add input to the query, using query search db for compatible names
+        let query = this.value;
+        fetch(`home.php?action=search_users&query=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                // Display json results as usernames, start as empty
+                let resultsDiv = document.getElementById('searchResults');
+                resultsDiv.innerHTML = "";
+                // For each user
+                data.forEach(user => {
+                    // Add each user to a div where you have the option to send them a friend request
+                    let div = document.createElement('div');
+                    div.innerHTML = user.username + 
+                        ` <button id="friendRequestButton" onclick="sendRequest(${user.id})">Add Friend</button>`;
+                    resultsDiv.appendChild(div);
+                });
+            });
+        });
+        
+        // To send a friend request when button is clicked
+        function sendRequest(receiverId) {
+            // Creates a pending request to receiver
+        fetch('send_request.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'receiver_id=' + receiverId
+        })
+            // Display results of the friend request
+        .then(response => response.text())
+        .then(alert);
         }
-    }, 10000);
 
-    // Auto-refresh unread users list every 10 seconds
-    setInterval(loadUnreadMessageUsers, 10000);
-
-    // Load messages every 10 seconds
-    setInterval(() => {
-        if (activeChatUser) {
-            loadMessages(activeChatUser);
+        // Change the friend request from pending to accepted or declined
+        function handleRequest(requestId, action) {
+            // Change request status from pending to accepted or declined
+            fetch('handle_request.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `request_id=${requestId}&action=${action}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display updated information with your choice
+                if (data.success) {
+                    loadFriendRequests();
+                    loadFriendsList();
+                } else {
+                    alert("Error handling request");
+                }
+            });
         }
-    }, 10000);
-    
-</script>
+
+        
+        // Get open friend requests 
+        function loadFriendRequests() {
+            // Get open friend requests to you
+            fetch('view_requests.php')
+                .then(response => response.json())
+                .then(data => {
+                    let requestsDiv = document.getElementById('friendRequests');
+                    requestsDiv.innerHTML = "";
+                    // If no incoming requests
+                    if (data.length === 0) {
+                        requestsDiv.innerHTML = "<p>No friend requests</p>";
+                        return;
+                    }
+                    // If incoming friend requests
+                    data.forEach(request => {
+                        // In new div display they sent a request and give option to accept or decline invitation
+                        let div = document.createElement('div');
+                        div.innerHTML = `${request.username} sent you a friend request. 
+                            <button id="acceptButton" onclick="handleRequest(${request.id}, 'accept')">Accept</button>
+                            <button id="declineButton" onclick="handleRequest(${request.id}, 'decline')">Decline</button>`;
+                        requestsDiv.appendChild(div);
+                    });
+                });
+        }
+
+        // Load accepted friend requests
+        function loadFriendsList() {
+            // Get status "accepted" friend requests
+            fetch('friends_list.php')
+                .then(response => response.json())
+                .then(data => {
+                    let friendsDiv = document.getElementById('friendsList');
+                    friendsDiv.innerHTML = "";
+                    // If no friends
+                    if (data.length === 0) {
+                        friendsDiv.innerHTML = "<p>No friends yet</p>";
+                        return;
+                    }
+                    // For each friend 
+                    data.forEach(friend => {
+                        // Create new div with their username
+                        let div = document.createElement('div');
+                        div.textContent = friend.username;
+                        friendsDiv.appendChild(div);
+                    });
+                });
+        }
+
+        // Event listener to run on selected usernames from the dropdown
+        document.addEventListener("DOMContentLoaded", function() {
+            let searchInput = document.getElementById("searchInput");
+            // When displaying names based on user input
+            document.addEventListener("click", function(event) {
+                let searchResults = document.getElementById("searchResults");
+                // To hide the dropdown
+                if (searchResults) {
+                    if (!searchResults.contains(event.target) && event.target !== searchInput) {
+                        searchResults.style.display = "none";
+                    }
+                }
+            });
+            // Show the search results when typing
+            searchInput.addEventListener("input", function() {
+                let searchResults = document.getElementById("searchResults");
+                // Show each result in the dropdown
+                if (searchResults) {
+                    searchResults.style.display = "block";
+                }
+            });
+        });
+
+
+        // Run requests every second
+        setInterval(loadFriendRequests, 1000);
+        setInterval(loadFriendsList, 1000);
+    </script>
+
+
 
 
 </body>

@@ -1,3 +1,4 @@
+
 <!-- 
 Create New User Page (register)
 CSC 450 Capstone Final Project Byethost
@@ -13,10 +14,10 @@ Revisions:
 -->
 <?php
 // Database connection
-$host = '';
-$user = '';
-$pass = ''; 
-$dbname = '';
+$host = "";
+$user = "";
+$pass = "";
+$dbname = "";
 
 // Create connection
 $conn = new mysqli($host, $user, $pass, $dbname);
@@ -104,7 +105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background-size: cover;
             background-position: center;
             position: relative;
-            overflow: hidden;
         }
 
         form {

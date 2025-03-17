@@ -1,3 +1,199 @@
+<?php
+    session_start();
+    if (!isset($_SESSION['username'])) {
+            header('Content-Type: application/json');
+            echo json_encode(['error' => 'user not authenticated']);
+            exit();
+        }
+    // Database connection details
+    $host = '';
+    $user = '';
+    $pass = '';
+    $dbname = '';
+
+    $conn = new mysqli($host, $user, $pass, $dbname);
+
+    // If host, db, user, or pass is incorrect create error
+    if ($conn->connect_error) {
+        die("Failed to connect: " . $conn->connect_error);
+    }
+    //Selects appropriate transaction and makes sure the data stays in its input elements
+
+    $sql = "SELECT * FROM users JOIN states ON users.id_state = states.stateCode JOIN countries ON users.id_country = countries.countryCode WHERE username = ? LIMIT 1";
+
+    // Set up a prepared statement
+    if($stmt = $conn->prepare($sql)) {
+
+        // Pass the parameters
+        $stmt->bind_param("s", $_SESSION['username']);
+
+        if($stmt->errno) {
+            print_r("stmt prepare( ) had error."); 
+        }
+
+        // Execute the query
+        $stmt->execute();
+        if($stmt->errno) {
+            print_r("Could not execute prepared statement");
+        }
+
+        // Fetch the results
+        $result = $stmt->get_result();
+
+        // Free results
+        $stmt->free_result( );
+        
+        // Close the statement
+        $stmt->close( );
+    } // end of if($conn->prepare($sql))
+
+    $row = $result->fetch_assoc();
+
+    $thisUser = [
+        "first_name" => $row["first_name"],
+        "last_name" => $row["last_name"],
+        "email" => $row["email"],
+        "username" => $row["username"],
+        "password" => $row["password"],
+        "birth_date" => $row["birth_date"],
+        "city" => $row["city"],
+        "state" => $row["stateCode"],
+        "country" => $row["countryCode"],
+        "profile_picture" => $row["profile_picture"]
+    ];   
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if(array_key_exists('formUserInfo',$_POST)) {
+            // Sanitize form input
+            $first_name = $conn->real_escape_string($_POST['txtFirstName']);
+            $last_name = $conn->real_escape_string($_POST['txtLastName']);
+            $email = $conn->real_escape_string($_POST['txtEmail']);
+            $username = $conn->real_escape_string($_POST['txtUsername']);
+            $birth_date = isset($_POST['datBday']) ? $conn->real_escape_string($_POST['datBday']) : NULL;
+            $city = $conn->real_escape_string($_POST['city']);
+            $state = $conn->real_escape_string($_POST['state']);
+            $country = $conn->real_escape_string($_POST['country']);
+            
+            // Handle file upload (profile picture)
+            $profile_picture = "uploads/blankProfile.png";
+            if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
+                $target_dir = "uploads/";
+                $target_file = $target_dir . basename($_FILES["picture"]["name"]);
+                $fileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+                
+                // Check if file is an image
+                if (in_array($fileType, ['jpg', 'png', 'jpeg'])) {
+                    if (move_uploaded_file($_FILES["picture"]["tmp_name"], $target_file)) {
+                        $profile_picture = $target_file;
+                    } else {
+                        print_r( "Sorry, there was an error uploading your file.");
+                    }
+                } else {
+                    print_r("Only JPG, PNG, and JPEG files are allowed.");
+                }
+            }
+        
+            // $sql for prepared statement
+            $sql = "UPDATE users SET 
+                first_name = ?,
+                last_name = ?,
+                email = ?,
+                username = ?,
+                birth_date = ?,
+                city = ?,
+                id_state = ?,
+                id_country = ?,
+                profile_picture = ?
+                WHERE username = ?";
+            // Prepare
+            if($stmt = $conn->prepare($sql)) {
+                // Bind the parameters
+                $stmt->bind_param("ssssssssss", $first_name, $last_name, $email, $username, $birth_date, $city, $state, $country, $profile_picture, $_SESSION['username']); 
+                if($stmt->errno) {
+                    print_r("stmt prepare( ) had error."); 
+                }
+                // Execute the query
+                $stmt->execute();
+                if($stmt->errno) {
+                    print_r("Could not execute prepared statement");
+                    $result = false;
+                }
+                else {
+                    $result = true;
+                }
+
+                // Free results
+                $stmt->free_result( );
+
+                // Close the statement
+                $stmt->close( );
+            }
+
+            //Display message if successful
+            if($result) {
+                print_r("User successfully updated");
+            }
+        }
+        if(array_key_exists('formPassword',$_POST)) {
+            $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+            $stmt->bind_param("s", $_SESSION['username']);
+            // Retrieve credentials
+            $stmt->execute();
+            $result = $stmt->get_result();
+            // Verify username exists
+            if ($result->num_rows === 1) {
+                $user = $result->fetch_assoc();
+                // Verify correct password
+
+                if (password_verify($_POST['oldPassword'], $user['password'])) {
+                    $stmt->close();
+                    $newPassword = password_hash($_POST['confirmPassword'], PASSWORD_DEFAULT);
+                    
+                    // $sql for prepared statement
+                    $sql = "UPDATE users SET 
+                        password = ?
+                        WHERE username = ?";
+                    // Prepare
+                    if($stmt = $conn->prepare($sql)) {
+                        // Bind the parameters
+                        $stmt->bind_param("ss",  $newPassword, $_SESSION['username']); 
+                        if($stmt->errno) {
+                            print_r("stmt prepare( ) had error."); 
+                        }
+                        // Execute the query
+                        $stmt->execute();
+                        if($stmt->errno) {
+                            print_r("Could not execute prepared statement");
+                            $result = false;
+                        }
+                        else {
+                            $result = true;
+                        }
+
+                        // Free results
+                        $stmt->free_result( );
+
+                        // Close the statement
+                        $stmt->close( );
+                    }
+
+                    //Display message if successful
+                    if($result) {
+                        print_r("User successfully updated");
+                    }
+                } else {
+                    print_r("Invalid password");
+                }
+
+            } else {
+                print_r("Invalid username");
+            }
+            
+        }
+    }
+
+?>
+<!DOCTYPE html>
 <!-- 
 User Account Settings (user_acct_settings)
 CSC 450 Capstone Final Project Byethost
@@ -16,15 +212,6 @@ Revisions:
 02/16/25: Ty Steinbach styled
 02/27/25: Ty Steinbach ensured first select options are disabled
 -->
-<?php 
-session_start();
-// Confirm login of user from index
-if (!isset($_SESSION['username'])) {
-    header("Location: index.php");
-    exit();
-}
-?>
-<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
@@ -180,290 +367,97 @@ if (!isset($_SESSION['username'])) {
                 margin-top: 30px;
             }
         </style>
-        <?php 
-
-        $host = '';
-        $user = '';
-        $pass = ''; 
-        $dbname = '';
-
-        $conn = new mysqli($host, $user, $pass, $dbname);
-
-
-        if ($conn->connect_error) {
-            die("Connection failed: " . $conn->connect_error);
-        }
-
-        // If host, db, user, or pass is incorrect create error
-        if ($conn->connect_error) {
-            die("Failed to connect: " . $conn->connect_error);
-        }
-
-        //Selects appropriate transaction and makes sure the data stays in its input elements
-
-        $sql = "SELECT * FROM users JOIN states ON users.id_state = states.stateCode JOIN countries ON users.id_country = countries.countryCode WHERE username = ? LIMIT 1";
         
-        // Set up a prepared statement
-        if($stmt = $conn->prepare($sql)) {
-
-            // Pass the parameters
-            $stmt->bind_param("i", $_SESSION['username']);
-
-            if($stmt->errno) {
-                print_r("stmt prepare( ) had error."); 
-            }
-
-            // Execute the query
-            $stmt->execute();
-            if($stmt->errno) {
-                print_r("Could not execute prepared statement");
-            }
-
-            // Fetch the results
-            $result = $stmt->get_result();
-
-            // Free results
-            $stmt->free_result( );
-            
-            // Close the statement
-            $stmt->close( );
-        } // end of if($conn->prepare($sql))
-
-        $row = $result->fetch_assoc();
-
-        $thisUser = [
-            "first_name" => $row["first_name"],
-            "last_name" => $row["last_name"],
-            "email" => $row["email"],
-            "username" => $row["username"],
-            "password" => $row["password"],
-            "birth_date" => $row["birth_date"],
-            "city" => $row["city"],
-            "state" => $row["stateCode"],
-            "country" => $row["countryCode"],
-            "profile_picture" => $row["profile_picture"]
-        ];   
-        
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            if(array_key_exists('formUserInfo',$_POST)) {
-                // Sanitize form input
-                $first_name = $conn->real_escape_string($_POST['txtFirstName']);
-                $last_name = $conn->real_escape_string($_POST['txtLastName']);
-                $email = $conn->real_escape_string($_POST['txtEmail']);
-                $username = $conn->real_escape_string($_POST['txtUsername']);
-                $birth_date = isset($_POST['datBday']) ? $conn->real_escape_string($_POST['datBday']) : NULL;
-                $city = $conn->real_escape_string($_POST['city']);
-                $state = $conn->real_escape_string($_POST['state']);
-                $country = $conn->real_escape_string($_POST['country']);
-                
-                // Handle file upload (profile picture)
-                $profile_picture = "uploads/blankProfile.png";
-                if (isset($_FILES['picture']) && $_FILES['picture']['error'] === UPLOAD_ERR_OK) {
-                    $target_dir = "uploads/";
-                    $target_file = $target_dir . basename($_FILES["picture"]["name"]);
-                    $fileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-                    
-                    // Check if file is an image
-                    if (in_array($fileType, ['jpg', 'png', 'jpeg'])) {
-                        if (move_uploaded_file($_FILES["picture"]["tmp_name"], $target_file)) {
-                            $profile_picture = $target_file;
-                        } else {
-                            print_r( "Sorry, there was an error uploading your file.");
-                        }
-                    } else {
-                        print_r("Only JPG, PNG, and JPEG files are allowed.");
-                    }
-                }
-            
-                // $sql for prepared statement
-                $sql = "UPDATE users SET 
-                    first_name = ?,
-                    last_name = ?,
-                    email = ?,
-                    username = ?,
-                    birth_date = ?,
-                    city = ?,
-                    id_state = ?,
-                    id_country = ?,
-                    profile_picture = ?
-                    WHERE username = ?";
-                // Prepare
-                if($stmt = $conn->prepare($sql)) {
-                    // Bind the parameters
-                    $stmt->bind_param("ssssssssss", $first_name, $last_name, $email, $username, $birth_date, $city, $state, $country, $profile_picture, $_SESSION['username']); 
-                    if($stmt->errno) {
-                        print_r("stmt prepare( ) had error."); 
-                    }
-                    // Execute the query
-                    $stmt->execute();
-                    if($stmt->errno) {
-                        print_r("Could not execute prepared statement");
-                        $result = false;
-                    }
-                    else {
-                        $result = true;
-                    }
-
-                    // Free results
-                    $stmt->free_result( );
-
-                    // Close the statement
-                    $stmt->close( );
-                }
-
-                //Display message if successful
-                if($result) {
-                    print_r("User successfully updated");
-                }
-            }
-            if(array_key_exists('formPassword',$_POST)) {
-                $stmt = $conn->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
-                $stmt->bind_param("s", $_SESSION['username']);
-                // Retrieve credentials
-                $stmt->execute();
-                $result = $stmt->get_result();
-                // Verify username exists
-                if ($result->num_rows === 1) {
-                    $user = $result->fetch_assoc();
-                    // Verify correct password
-
-                    if (password_verify($_POST['oldPassword'], $user['password'])) {
-                        $stmt->close();
-                        $newPassword = password_hash($_POST['confirmPassword'], PASSWORD_DEFAULT);
-                        
-                        // $sql for prepared statement
-                        $sql = "UPDATE users SET 
-                            password = ?
-                            WHERE username = ?";
-                        // Prepare
-                        if($stmt = $conn->prepare($sql)) {
-                            // Bind the parameters
-                            $stmt->bind_param("ss",  $newPassword, $_SESSION['username']); 
-                            if($stmt->errno) {
-                                print_r("stmt prepare( ) had error."); 
-                            }
-                            // Execute the query
-                            $stmt->execute();
-                            if($stmt->errno) {
-                                print_r("Could not execute prepared statement");
-                                $result = false;
-                            }
-                            else {
-                                $result = true;
-                            }
-
-                            // Free results
-                            $stmt->free_result( );
-
-                            // Close the statement
-                            $stmt->close( );
-                        }
-
-                        //Display message if successful
-                        if($result) {
-                            print_r("User successfully updated");
-                        }
-                    } else {
-                        print_r("Invalid password");
-                    }
-
-                } else {
-                    print_r("Invalid username");
-                }
-                
-            }
-        }
-        ?>
         <script type="module">
-                import { eventOptAmerica } from './src/stateDisplayHandler.js';
+            import {eventOptAmerica} from './src/stateDisplayHandler.js';
+            
+            //DOM constants
+            const form = document.getElementById("formPassword");
+            const txtReset = document.getElementById('txtPassword');
+            const txtConfirm = document.getElementById('txtConfirmPassword');
+            const message = document.getElementById('message');
+            const optCountry = document.getElementById('optCountry');
+            const settings = document.getElementsByClassName('settingsOption');
 
-                //DOM constants
-                const form = document.getElementById("formPassword");
-                const txtReset = document.getElementById('txtPassword');
-                const txtConfirm = document.getElementById('txtConfirmPassword');
-                const message = document.getElementById('message');
-                const optCountry = document.getElementById('optCountry');
-                const settings = document.getElementsByClassName('settingsOption');
+            const debouncedCheck = debounce(checkPass, 400);
 
-                const debouncedCheck = debounce(checkPass, 400);
+            function debounce(func, delay) {
+                let timeoutId;
+                return function(...args) {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => {
+                        func.apply(this, args);
+                    }, delay);
+                };
+            }
 
-                function debounce(func, delay) {
-                    let timeoutId;
-                    return function(...args) {
-                        clearTimeout(timeoutId);
-                        timeoutId = setTimeout(() => {
-                            func.apply(this, args);
-                        }, delay);
-                    };
+            function checkPass() {
+                const resetValue = txtReset.value;
+                const confirmVal = txtConfirm.value;
+
+                if(resetValue != confirmVal){
+                    message.innerText = "Passwords do not match";
                 }
-
-                function checkPass() {
-                    const resetValue = txtReset.value;
-                    const confirmVal = txtConfirm.value;
-
-                    if(resetValue != confirmVal){
-                        message.innerText = "Passwords do not match";
-                    }
-                    else if(confirmVal.length < 8) {
-                        message.innerText = "Password is too short";
-                    }
-                    else {
-                        message.innerText = "";
-                    }
+                else if(confirmVal.length < 8) {
+                    message.innerText = "Password is too short";
                 }
-
-
-                if (optCountry.value != "") {
-                    eventOptAmerica(optCountry.value);
+                else {
+                    message.innerText = "";
                 }
+            }
+
+
+            if (optCountry.value != "") {
+                eventOptAmerica(optCountry.value);
+            }
+            
+
+
+            //Ensures correct input when entering in first password field
+            txtReset.addEventListener("input", debouncedCheck);
+
+            //Ensures correct input when entering in second password field
+            txtConfirm.addEventListener("input", debouncedCheck);
+
+            //Ensures correct input when submitting form
+            form.addEventListener("submit", (event) => {
+                event.preventDefault(); //Prevents button default behavior
+                const resetValue = txtReset.value;
+                const confirmVal = txtConfirm.value;
                 
+                if((resetValue == "") || (confirmVal == "")) {
+                    message.innerText = "Please fill all fields";
+                }
+                else if(resetValue != confirmVal){
+                    message.innerText = "Passwords do not match";
+                }
+                else if(confirmVal.length < 8) {
+                    message.innerText = "Password is too short";
+                }
+                else {
+                    form.submit();
+                }
+            });
 
+            //Add event listener to the country select element to see if USA was selected
+            optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
 
-                //Ensures correct input when entering in first password field
-                txtReset.addEventListener("input", debouncedCheck);
-
-                //Ensures correct input when entering in second password field
-                txtConfirm.addEventListener("input", debouncedCheck);
-
-                //Ensures correct input when submitting form
-                form.addEventListener("submit", (event) => {
-                    event.preventDefault(); //Prevents button default behavior
-                    const resetValue = txtReset.value;
-                    const confirmVal = txtConfirm.value;
-                    
-                    if((resetValue == "") || (confirmVal == "")) {
-                        message.innerText = "Please fill all fields";
-                    }
-                    else if(resetValue != confirmVal){
-                        message.innerText = "Passwords do not match";
-                    }
-                    else if(confirmVal.length < 8) {
-                        message.innerText = "Password is too short";
-                    }
-                    else {
-                        form.submit();
+            for(var i = 0; i < settings.length; i++) {
+                settings[i].addEventListener('click', (event) => {
+                    if (event.target.innerText === "User Settings") {
+                        window.location.href = "user_acct_settings.php";
+                    } else if (event.target.innerText === "Dashboard Settings") {
+                        console.log("Dashboard Settings");
                     }
                 });
-
-                //Add event listener to the country select element to see if USA was selected
-                optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
-
-                for(var i = 0; i < settings.length; i++) {
-                    settings[i].addEventListener('click', (event) => {
-                        if (event.target.innerText === "User Settings") {
-                            window.location.href = "user_acct_settings.php";
-                        } else if (event.target.innerText === "Dashboard Settings") {
-                            console.log("Dashboard Settings");
-                        }
-                    });
-                }   
+            }   
         </script>
     </head>
     <body>
         <div class="background"></div>
         <main>
             <header>
-                <p>🡰 Dashboard</p>
+                <p><a href="http://fourfiftyg3.byethost24.com/home.php" style="color: white;">🡰 Dashboard</a></p>
                 <h1>Account Settings</h1>
 
             </header>
@@ -527,7 +521,7 @@ if (!isset($_SESSION['username'])) {
                         <select name="state" id="optState" hidden>
                             <!--Automatically creates all options from database-->
                             <option disabled selected value>Choose State</option>
-                            <?php 
+                            <?php
                                 $sql = "SELECT * FROM states";
                                 if($stmt = $conn->prepare($sql)) {
                                     $stmt->execute();

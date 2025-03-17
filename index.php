@@ -2,15 +2,13 @@
 Login page(index)
 CSC 450 Capstone Final Project Byethost
 Dylan Theis: theisd@csp.edu
-Keagan Haar: haark@csp.edu
-Ty Steinbach: 
+Keagan Harr: 
+Ty Steinbach:
 1/25/25
 Revisions: 
 1/25/25: Dylan Theis created php db connection and html doc outline
 02/04/25: Ty Steinbach added PHP to ensure reset_password functionality when needed
 02/05/25: Keagan Haar created a styling CSS
-02/16/25: Ty Steinbach changed hash() to password_hash() for security and changed comparison to password_verify, changed table to users
-
 -->
 
 
@@ -18,26 +16,21 @@ Revisions:
 <?php
 session_start();
 
-$_SESSION['reset'] = 0;
 
 // Database connection details
-
 $host = '';
 $user = '';
-$pass = ''; 
+$pass = '';
 $dbname = '';
 
 $conn = new mysqli($host, $user, $pass, $dbname);
-
-
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
 
 // If host, db, user, or pass is incorrect create error
 if ($conn->connect_error) {
     die("Failed to connect: " . $conn->connect_error);
 }
+
+
 
 // Login
 $error = '';
@@ -58,22 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($result->num_rows === 1) {
             $user = $result->fetch_assoc();
             // Verify correct password
-            if (password_verify($password,   $user['password'])) {
+            if (password_verify($_POST['password'], $user['password'])) {
                 // Log user in and progress them to homepage
                 $_SESSION['username'] = $user['username'];
+                $_SESSION['user_id'] = $user['id'];
+                header("Location: home.php");
+                exit();
 
-                //If the user is reseting password
-                if($user['resetting'] === 1) {
-                    //Change session variable to appropriate value and change location to reset_password page
-                    $_SESSION['reset'] = 1;
-                    header("Location: reset_password.php");
-                    exit();
-                }
-                else {
-                    //Else, log in
-                    header("Location: home.php");
-                    exit();
-                }
             } else {
                 $error = "Invalid password";
             }
@@ -91,8 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 $conn->close();
 ?>
-
-
 
 
 <!DOCTYPE html>
