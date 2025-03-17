@@ -7,23 +7,22 @@ Ty Steinbach: steinbat1@csp.edu
 2/04/25
 Revisions: 
 2/04/25: Ty Steinbach created the file, added PHP functionality to change the password, added JavaScript to handle invalid passwords, added HTML
-02/16/25: Ty Steinbach added debounce function to handle input events and changed hash() to password_hash() for security, changed table to users
 -->
 
 
 <?php 
 session_start();
 
-//Confirm login of user from index
-if (!isset($_SESSION['username']) || $_SESSION['reset'] == 0) {
+Confirm login of user from index
+ if (!isset($_SESSION['username']) || $_SESSION['reset'] == 0) {
     header("Location: index.php");
     exit();
 }
 
-//Database connection details
+// Database connection details
 $host = '';
 $user = '';
-$pass = ''; 
+$pass = '';
 $dbname = '';
 
 //Connect
@@ -40,7 +39,7 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
     $tempPass = $_POST['txtReset'];
     $tempPass .= $_POST['txtConfirm'];
     //Hashed password
-    $password = password_hash($_POST['txtConfirm'], PASSWORD_DEFAULT);
+    $password = hash('sha256', $_POST['txtConfirm']);
 
     //If passwords aren't empty
     if (!empty($tempPass)) {
@@ -81,7 +80,8 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
         const txtConfirm = document.getElementById('txtConfirm');
         const message = document.getElementById('message');
 
-        function checkPass() {
+        //Ensures correct input when entering in first password field
+        txtReset.addEventListener("input", (event) => {
             const resetValue = txtReset.value;
             const confirmVal = txtConfirm.value;
 
@@ -94,16 +94,23 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
             else {
                 message.innerText = "";
             }
-        }
-
-
-        const debouncedCheck = debounce(checkPass, 400);
-
-        //Ensures correct input when entering in first password field
-        txtReset.addEventListener("input", debouncedCheck);
+        });
 
         //Ensures correct input when entering in second password field
-        txtConfirm.addEventListener("input", debouncedCheck);
+        txtConfirm.addEventListener("input", (event) => {
+            const resetValue = txtReset.value;
+            const confirmVal = txtConfirm.value;
+
+            if(resetValue != confirmVal){
+                message.innerText = "Passwords do not match";
+            }
+            else if(confirmVal.length < 8) {
+                message.innerText = "Password is too short";
+            }
+            else {
+                message.innerText = "";
+            }
+        });
 
         //Ensures correct input when submitting form
         form.addEventListener("submit", (event) => {
@@ -141,10 +148,10 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
         <form id="formReset" method="POST" action="">
             
             <label for="txtReset">New Password</label>
-            <input type="password" id="txtReset" name="txtReset" value="">
+            <input type="text" id="txtReset" name="txtReset" value="">
 
             <label for="txtConfirm">Confirm Password</label>
-            <input type="password" id="txtConfirm" name="txtConfirm" value="">
+            <input type="text" id="txtConfirm" name="txtConfirm" value="">
 
             <button type="submit" id="btnReset" name="btnReset" value="reset">Submit</button>
         </form>
