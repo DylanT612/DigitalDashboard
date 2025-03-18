@@ -13,7 +13,7 @@ Revisions:
 <?php 
 session_start();
 
-Confirm login of user from index
+//Confirm login of user from index
  if (!isset($_SESSION['username']) || $_SESSION['reset'] == 0) {
     header("Location: index.php");
     exit();
