@@ -23,10 +23,10 @@ https://github.com/obadaKraishan/EventCalendarPHP
         exit();
     }
 
-    $host = 'localhost';
-    $user = 'root';
-    $pass = 'mysql'; 
-    $dbname = 'csc450temp';
+    $host = '';
+    $user = '';
+    $pass = ''; 
+    $dbname = '';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
