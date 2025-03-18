@@ -17,50 +17,6 @@
     if ($conn->connect_error) {
         die("Failed to connect: " . $conn->connect_error);
     }
-    //Selects appropriate transaction and makes sure the data stays in its input elements
-
-    $sql = "SELECT * FROM users JOIN states ON users.id_state = states.stateCode JOIN countries ON users.id_country = countries.countryCode WHERE username = ? LIMIT 1";
-
-    // Set up a prepared statement
-    if($stmt = $conn->prepare($sql)) {
-
-        // Pass the parameters
-        $stmt->bind_param("s", $_SESSION['username']);
-
-        if($stmt->errno) {
-            print_r("stmt prepare( ) had error."); 
-        }
-
-        // Execute the query
-        $stmt->execute();
-        if($stmt->errno) {
-            print_r("Could not execute prepared statement");
-        }
-
-        // Fetch the results
-        $result = $stmt->get_result();
-
-        // Free results
-        $stmt->free_result( );
-        
-        // Close the statement
-        $stmt->close( );
-    } // end of if($conn->prepare($sql))
-
-    $row = $result->fetch_assoc();
-
-    $thisUser = [
-        "first_name" => $row["first_name"],
-        "last_name" => $row["last_name"],
-        "email" => $row["email"],
-        "username" => $row["username"],
-        "password" => $row["password"],
-        "birth_date" => $row["birth_date"],
-        "city" => $row["city"],
-        "state" => $row["stateCode"],
-        "country" => $row["countryCode"],
-        "profile_picture" => $row["profile_picture"]
-    ];   
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if(array_key_exists('formUserInfo',$_POST)) {
@@ -191,6 +147,52 @@
             
         }
     }
+    //Selects appropriate transaction and makes sure the data stays in its input elements
+
+    $sql = "SELECT * FROM users JOIN states ON users.id_state = states.stateCode JOIN countries ON users.id_country = countries.countryCode WHERE username = ? LIMIT 1";
+
+    // Set up a prepared statement
+    if($stmt = $conn->prepare($sql)) {
+
+        // Pass the parameters
+        $stmt->bind_param("s", $_SESSION['username']);
+
+        if($stmt->errno) {
+            print_r("stmt prepare( ) had error."); 
+        }
+
+        // Execute the query
+        $stmt->execute();
+        if($stmt->errno) {
+            print_r("Could not execute prepared statement");
+        }
+
+        // Fetch the results
+        $result = $stmt->get_result();
+
+        // Free results
+        $stmt->free_result( );
+        
+        // Close the statement
+        $stmt->close( );
+    } // end of if($conn->prepare($sql))
+
+    $row = $result->fetch_assoc();
+
+    $thisUser = [
+        "first_name" => $row["first_name"],
+        "last_name" => $row["last_name"],
+        "email" => $row["email"],
+        "username" => $row["username"],
+        "password" => $row["password"],
+        "birth_date" => $row["birth_date"],
+        "city" => $row["city"],
+        "state" => $row["stateCode"],
+        "country" => $row["countryCode"],
+        "profile_picture" => $row["profile_picture"]
+    ];   
+
+    
 
 ?>
 <!DOCTYPE html>
