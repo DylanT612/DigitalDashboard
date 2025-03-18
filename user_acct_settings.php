@@ -259,6 +259,17 @@ Revisions:
                 padding: 10px;
                 grid-area: header;
             }
+            h1 {
+                font-size: 23pt;
+                font-weight: bold;
+            }
+            #dashboardLink{
+                font-size: 15pt;
+            }
+            #dashboardLink:hover {
+                cursor: pointer;
+                color: grey;
+            }
             #settings {
                 height: 20%;
                 
@@ -453,13 +464,19 @@ Revisions:
                     }
                 });
             }   
+
+            document.getElementById("dashboardLink").addEventListener("click", () => {
+                window.location.href = 'home.php';
+            })
         </script>
     </head>
     <body>
         <div class="background"></div>
         <main>
             <header>
-                <p><a href="http://fourfiftyg3.byethost24.com/home.php" style="color: white;">🡰 Dashboard</a></p>
+                <p>
+                    <span id="dashboardLink">🡰 Dashboard</span>
+                </p>
                 <h1>Account Settings</h1>
 
             </header>
