@@ -17,50 +17,6 @@
     if ($conn->connect_error) {
         die("Failed to connect: " . $conn->connect_error);
     }
-    //Selects appropriate transaction and makes sure the data stays in its input elements
-
-    $sql = "SELECT * FROM users JOIN states ON users.id_state = states.stateCode JOIN countries ON users.id_country = countries.countryCode WHERE username = ? LIMIT 1";
-
-    // Set up a prepared statement
-    if($stmt = $conn->prepare($sql)) {
-
-        // Pass the parameters
-        $stmt->bind_param("s", $_SESSION['username']);
-
-        if($stmt->errno) {
-            print_r("stmt prepare( ) had error."); 
-        }
-
-        // Execute the query
-        $stmt->execute();
-        if($stmt->errno) {
-            print_r("Could not execute prepared statement");
-        }
-
-        // Fetch the results
-        $result = $stmt->get_result();
-
-        // Free results
-        $stmt->free_result( );
-        
-        // Close the statement
-        $stmt->close( );
-    } // end of if($conn->prepare($sql))
-
-    $row = $result->fetch_assoc();
-
-    $thisUser = [
-        "first_name" => $row["first_name"],
-        "last_name" => $row["last_name"],
-        "email" => $row["email"],
-        "username" => $row["username"],
-        "password" => $row["password"],
-        "birth_date" => $row["birth_date"],
-        "city" => $row["city"],
-        "state" => $row["stateCode"],
-        "country" => $row["countryCode"],
-        "profile_picture" => $row["profile_picture"]
-    ];   
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if(array_key_exists('formUserInfo',$_POST)) {
@@ -191,6 +147,52 @@
             
         }
     }
+    //Selects appropriate transaction and makes sure the data stays in its input elements
+
+    $sql = "SELECT * FROM users JOIN states ON users.id_state = states.stateCode JOIN countries ON users.id_country = countries.countryCode WHERE username = ? LIMIT 1";
+
+    // Set up a prepared statement
+    if($stmt = $conn->prepare($sql)) {
+
+        // Pass the parameters
+        $stmt->bind_param("s", $_SESSION['username']);
+
+        if($stmt->errno) {
+            print_r("stmt prepare( ) had error."); 
+        }
+
+        // Execute the query
+        $stmt->execute();
+        if($stmt->errno) {
+            print_r("Could not execute prepared statement");
+        }
+
+        // Fetch the results
+        $result = $stmt->get_result();
+
+        // Free results
+        $stmt->free_result( );
+        
+        // Close the statement
+        $stmt->close( );
+    } // end of if($conn->prepare($sql))
+
+    $row = $result->fetch_assoc();
+
+    $thisUser = [
+        "first_name" => $row["first_name"],
+        "last_name" => $row["last_name"],
+        "email" => $row["email"],
+        "username" => $row["username"],
+        "password" => $row["password"],
+        "birth_date" => $row["birth_date"],
+        "city" => $row["city"],
+        "state" => $row["stateCode"],
+        "country" => $row["countryCode"],
+        "profile_picture" => $row["profile_picture"]
+    ];   
+
+    
 
 ?>
 <!DOCTYPE html>
@@ -211,6 +213,7 @@ Revisions:
 02/15/25: Ty Steinbach added full PHP functionality 
 02/16/25: Ty Steinbach styled
 02/27/25: Ty Steinbach ensured first select options are disabled
+03/17/25: Ty Steinbach changed dashboard link and order of PHP
 -->
 <html lang="en">
     <head>
@@ -256,6 +259,17 @@ Revisions:
                 background-color: rgb(33, 33, 53);
                 padding: 10px;
                 grid-area: header;
+            }
+            h1 {
+                font-size: 23pt;
+                font-weight: bold;
+            }
+            #dashboardLink{
+                font-size: 15pt;
+            }
+            #dashboardLink:hover {
+                cursor: pointer;
+                color: grey;
             }
             #settings {
                 height: 20%;
@@ -451,13 +465,19 @@ Revisions:
                     }
                 });
             }   
+
+            document.getElementById("dashboardLink").addEventListener("click", () => {
+                window.location.href = 'home.php';
+            })
         </script>
     </head>
     <body>
         <div class="background"></div>
         <main>
             <header>
-                <p><a href="http://fourfiftyg3.byethost24.com/home.php" style="color: white;">🡰 Dashboard</a></p>
+                <p>
+                    <span id="dashboardLink">🡰 Dashboard</span>
+                </p>
                 <h1>Account Settings</h1>
 
             </header>

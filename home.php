@@ -204,6 +204,7 @@ Revisions:
 03/14/25: Dylan Theis added friending div 
 03/15/25: Dylan Theis added friending badge for users who are friends
 03/16/25: Dylan Theis added styles to friending div
+03/17/25: Ty Steinbach ensured a single session_start() and correct SQL references
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
@@ -671,7 +672,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
 
     <?php
-    session_start();
     // Database connection details
     $host = '';
     $user = '';
@@ -713,8 +713,8 @@ NOMINATIM API for sourcing the coordinates for the weather data
         $thisUser = [
             "profile_picture" => $row["profile_picture"],
             "city" => $row['city'],
-            "country" => $row['country'],
-            "state" => $row['state']
+            "country" => $row['id_country'],
+            "state" => $row['id_state']
         ];
         // Close the statement after fetching results
         $stmt->close();
