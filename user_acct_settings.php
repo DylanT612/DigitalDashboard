@@ -33,7 +33,6 @@
             $city = $conn->real_escape_string($_POST['city']);
             $state = $conn->real_escape_string($_POST['state']);
             $country = $conn->real_escape_string($_POST['country']);
-            $profile_picture = "uploads/blankProfile.png";
 
             // Check if the new username is unique
             $checkSql = "SELECT username FROM users WHERE username = ? AND username<> ?";
@@ -49,11 +48,10 @@
                 // $sql for prepared statement to update user
                 $sql = "UPDATE users SET 
                     first_name = ?, last_name = ?, email = ?, username = ?,
-                    birth_date = ?, city = ?, id_state = ?, id_country = ?,
-                    profile_picture = ? WHERE username = ?";
+                    birth_date = ?, city = ?, id_state = ?, id_country = ? WHERE username = ?";
                 if($stmt = $conn->prepare($sql)) {
                     // Bind the parameters
-                    $stmt->bind_param("ssssssssss", $first_name, $last_name, $email, $username, $birth_date, $city, $state, $country, $profile_picture, $_SESSION['username']); 
+                    $stmt->bind_param("sssssssss", $first_name, $last_name, $email, $username, $birth_date, $city, $state, $country, $_SESSION['username']); 
                     // Execute the query
                     if ($stmt->execute()) {
                         // Check if username was updated
@@ -126,14 +124,17 @@
                         $sql = "UPDATE users SET profile_picture = ? WHERE username = ?";
                         $stmt = $conn->prepare($sql);
                         $stmt->bind_param("ss", $profile_picture, $_SESSION['username']);
+                        
                         if ($stmt->execute()) {
                             $redirect = false;
                             $errorMessage = "Profile picture updated successfully.";
                             $messageType = "success";
+                            $thisUser['profile_picture'] = $profile_picture;
                         } else {
                             $errorMessage = "Error updating profile picture: " . $stmt->error;
                             $messageType = "error";
                         }
+
                         $stmt->close();
                     } else {
                         $errorMessage = "Sorry, there was an error uploading your file.";
