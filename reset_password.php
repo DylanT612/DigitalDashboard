@@ -23,7 +23,7 @@ if (!isset($_SESSION['username']) || $_SESSION['reset'] == 0) {
 //Database connection details
 $host = '';
 $user = '';
-$pass = ''; 
+$pass = '';
 $dbname = '';
 
 //Connect
@@ -80,6 +80,13 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
 }
 ?>
 <script>
+    function debounce(func, delay) {
+        let timeoutId;
+        return function(...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
     //Function to call later
     function events() {
         //DOM constants
@@ -160,6 +167,7 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
             <input type="password" id="txtConfirm" name="txtConfirm" value="">
 
             <button type="submit" id="btnReset" name="btnReset" value="reset">Submit</button>
+            <div id="message" class="error"></div>
         </form>
         <p><a href="login.php" class="link-button">Back To Home Page</a></p>
     </main>
