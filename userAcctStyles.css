@@ -1,0 +1,112 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+html {
+    background: url('./Images/digital.jpg') no-repeat center center fixed;
+    background-size: cover;
+    position: relative;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #EFEFEF;
+}
+
+.main-container {
+    background-color: rgba(50, 50, 50, 0.8);
+    padding: 20px;
+    border-radius: 20px;
+    width: 700px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    margin: 50px auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.credentials-container, .password-container {
+    flex: 1; /* Each form takes equal width */
+    min-width: 300px; /* Minimum width of each form */
+    margin: 10px; /* Space between forms */
+    padding: 20px; /* Padding inside each form container */
+    box-sizing: border-box; /* Includes padding in width calculation */
+}
+
+#profileContainer {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 50%; /* Gives a circular frame */
+    margin-bottom: 20px;
+}
+
+#profileContainer img {
+    width: 100%;  /* Adjusts the image to fit the container's width */
+    height: 100%;  /* Maintains aspect ratio */
+    object-fit: cover;
+}
+
+.message-container {
+    width: 100%;
+    padding: 5px;
+    margin-top: 25px;
+    text-align: center;
+    border-radius: 5px;
+    display: none; /* Initially hidden, shown only when there are messages */
+    background-color:rgb(0, 0, 0);
+}
+
+.success {
+    color: #28a745;
+}
+
+.error {
+    color: #dc3545;
+}
+
+input, select {
+    width: 97%;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+button {
+    background-color: #4CAF50; /* Green button */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%; /* Full width button */
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+#dashboardLink{
+    position: absolute;
+    top: 60px;
+    font-size: 15pt;
+}
+
+#dashboardLink:hover {
+    cursor: pointer;
+    color: grey;
+}
