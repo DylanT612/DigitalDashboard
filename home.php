@@ -1190,7 +1190,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 var data = await response.json();
 
                 //Filters out all except today's events
-                const today = new Date().toISOString().split('T')[0];
+                const today = new Date().toLocaleDateString('en-CA');
                 data = data.filter(item => {
                     const eventDate = item.start.split(' ')[0];
                     return eventDate == today;
