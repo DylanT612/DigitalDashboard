@@ -26,7 +26,7 @@ function fetchSharedEvents($conn) {
 
 function fetchFriends($conn, $id) {
     // Prepare and execute the SQL statement to select all events
-    $stmt = $conn->prepare("SELECT users.id_user, users.username FROM users JOIN shared_events ON users.id_user = shared_events.id_user WHERE shared_events.id_event = ?");
+    $stmt = $conn->prepare("SELECT users.id, users.username FROM users JOIN shared_events ON users.id = shared_events.id_user WHERE shared_events.id_event = ?");
     $stmt->execute([$id]);
 
     // Return the fetched events as an associative array
