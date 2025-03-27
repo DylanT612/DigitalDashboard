@@ -1254,10 +1254,13 @@ NOMINATIM API for sourcing the coordinates for the weather data
             const eventEdit = document.getElementById('eventEdit');
             //If e exists (called from an event listener) then filter out the correct event
             if (e) {
-               var event = events.filter(item => {
-                    return item.id == e.target.id
+                // Find the closest parent <li> (or whatever your list element is)
+                const listItem = e.target.closest('li'); // Adjust selector as needed
+                
+                var event = events.filter(item => {
+                    return item.id == listItem.id; // Use the parent's ID
                 });
-                event = event[0]; 
+                event = event[0];
             }
             else { //Else choose the first one
                 var event = events[0];
