@@ -57,7 +57,7 @@ $(document).ready(function() {
             $('#startTime').val(moment(event.start).format("YYYY-MM-DD HH:mm:ss"));
             $('#endTime').val(moment(event.end).format("YYYY-MM-DD HH:mm:ss"));
             $.each(event.friends, function(index, value) {
-                addFriend(value.username, value.id_user, false, event.user_created);
+                addFriend(value.username, value.id, false, event.user_created);
             });
             if (event.user_created == false) {
                 $('#optFriend').prop('disabled', true);
