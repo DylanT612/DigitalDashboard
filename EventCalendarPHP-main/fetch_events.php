@@ -39,7 +39,7 @@ foreach ($sharedEvents as $event) {
 }
 
 function fetchUsername($conn, $id) {
-    $stmt = $conn->prepare("SELECT username FROM users WHERE id_user = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT username FROM users WHERE id = ? LIMIT 1");
     $stmt->execute([$id]);
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
     return $result['username'];
