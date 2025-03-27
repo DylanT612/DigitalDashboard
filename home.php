@@ -9,7 +9,7 @@
     // Database connection details
     $host = '';
     $user = '';
-    $pass = '';
+    $pass = ''; 
     $dbname = '';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
@@ -205,6 +205,9 @@ Revisions:
 03/15/25: Dylan Theis added friending badge for users who are friends
 03/16/25: Dylan Theis added styles to friending div
 03/17/25: Ty Steinbach ensured a single session_start() and correct SQL references
+03/25/25: Ty Steinbach made some slight bug fixes
+03/26/25: Ty Steinbach added full mini-calendar functionality
+
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
@@ -671,11 +674,137 @@ NOMINATIM API for sourcing the coordinates for the weather data
     </style>
 
 
+    <!--Calendar Style-->
+    <style>
+        #todaysEvents {
+            width: 225px;
+            min-height: 230px;
+            background-color: rgb(42, 42, 48);
+            border-radius: 10px;
+            position: fixed;
+            top: 300px;
+        }
+        #todaysEvents button {
+            background-color: rgb(90, 90, 192);
+            cursor: pointer;
+        }
+        #todaysEvents button:hover {
+            background-color: rgb(64, 64, 136);
+            cursor: pointer;
+        }
+        #calendarHeader {
+            display: grid;
+            grid-template-columns: auto auto;
+            align-items: center;
+            background-color: lightcoral;
+            height: fit-content;
+            padding: 5px;
+        }
+        #calendarLink {
+            grid-column: 1 / span 2;
+            text-align: center;
+            background-color: rgb(218, 156, 156);
+            padding: 5px;
+        }
+        #calendarLink:hover {
+            background-color: rgb(190, 122, 122);
+            cursor: pointer;
+        }
+        #day {
+            height: fit-content;
+        }
+        #day span {
+            font-size: 15pt;
+            height: fit-content;
+        }
+        #date {
+            text-align: right;
+        }
+        #events {
+            padding: 3px;
+            list-style-type: none;
+        }
+        #events li {
+            background-color: rgb(132, 132, 206);
+            padding: 5px;
+        }
+
+        #events li:hover {
+            background-color: rgb(102, 102, 160);
+            cursor: pointer;
+        }
+
+        #eventEdit {
+            position: absolute;
+            top: 30%;
+            left: 30%;
+            height: 400px;
+            width: 300px;
+            background-color: grey;
+            padding: 10px;
+        }
+
+        #eventEditInner {
+            display: grid;
+            gap: 10px;
+        }
+
+        #eventEdit button {
+            background-color: rgb(90, 90, 192);
+            cursor: pointer;
+        }
+
+        #eventEdit button:hover {
+            background-color: rgb(64, 64, 136);
+            cursor: pointer;
+        }
+
+        #eventEdit button:disabled {
+            background-color: rgb(132, 132, 172);
+        }
+
+        #eventEdit button:disabled:hover {
+            background-color: rgb(132, 132, 172);
+            cursor: default;
+        }
+
+        #editHeader {
+            display: grid;
+            grid-template-columns: auto auto;
+            align-items: center;
+        }
+
+        #editHeader h5 {
+            font-size: 17pt;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        #editHeader button {
+            width: 40px;
+            height: 40px;
+        }
+
+        #eventForm {
+            display: grid;
+            grid-template-columns: auto;
+            gap: 10px;
+        }
+
+        #friendsAdded {
+            min-width: 80%;
+            min-height: 40px;
+            margin: 10px;
+            border-radius: 7px;
+            background-color: lightgrey;
+        }
+    </style>
+
     <?php
     // Database connection details
     $host = '';
     $user = '';
-    $pass = '';
+    $pass = ''; 
     $dbname = '';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
@@ -721,8 +850,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
     } else {
         die("SQL Prepare Error: " . $conn->error);
     }
-    // Close the database connection
-    $conn->close();
     ?>
 
 
@@ -959,7 +1086,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
             } catch (error) { //Catch thrown error
                 //Log and display error
                 console.error("Error fetching data:", error);
-                displayError(error);
             }
         }
 
@@ -1023,6 +1149,8 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 console.error("Error fetching news:", error);
             }
         }
+
+        //Handles displaying options when clicking on profile
         function profileEvents () {
             document.getElementById("profileContainer").addEventListener("click", () => {
                 console.log(profileDisplayHandler);
@@ -1042,8 +1170,329 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 profileNav.style.display = 'none';
             }
         }
-        //Event listener for clicking profile picture
+
+
+
+        //Script for calendar
+
+        //Gets all events for this user
+        async function getEvents() {
+            try {
+                //Fetch data from API
+                const response = await fetch("EventCalendarPHP-main/fetch_events.php");
+                
+                //If response is not ok, throw error
+                if (!response.ok) {
+                    throw new Error(`HTTP Error\nStatus: ${response.status} - ${response.statusText}`);
+                }
+
+                //Put data in constant after parsing
+                var data = await response.json();
+
+                //Filters out all except today's events
+                const today = new Date().toISOString().split('T')[0];
+                data = data.filter(item => {
+                    const eventDate = item.start.split(' ')[0];
+                    return eventDate == today;
+                });
+                //Return data
+                return(data);
+
+            } catch (error) { //Catch thrown error
+                //Log and display error
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        //Displays events on mini-calendar
+        function displayEvents(events) {
+            const eventList = document.getElementById('events');
+            eventList.innerHTML = '';
+
+            //If there are events
+            if (events.length > 0) {
+                //Sets up element and appends it to eventList
+                events.forEach((event) => {
+                    const eventElement = document.createElement('li');
+                    const date = new Date(event.start);
+                    const time = date.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+                    var title = event.title;
+
+                    //Ensures shortened version of long titles
+                    if (title.length > 20) {
+                        title = event.title.substring(0, 17);
+                        title += '...';
+                    }
+
+                    eventElement.classList.add('event');
+                    eventElement.id = event.id;
+                    eventElement.innerHTML = `
+                        <span id='eventTimeSpan'>${time}</span>
+                        <span id='eventTitleSpan'>${title}</span>
+                    `;
+
+                    eventList.appendChild(eventElement);
+                })
+            }
+            else { //Else show empty message
+                const eventElement = document.createElement('li');
+                eventElement.innerHTML = `No Events Today`;
+
+                    eventList.appendChild(eventElement);
+            }
+        }
+
+        //Calls function when conditions are met
+        function closeEventEvent(e) {
+            if(!document.getElementById('eventEdit').contains(e.target) && document.getElementById('eventEdit').hidden == false) {
+                closeEvent();
+            }
+        }
+
+        //Function for clicking an event to edit or for adding an event
+        function eventClick(e, events) {
+            const eventEdit = document.getElementById('eventEdit');
+            //If e exists (called from an event listener) then filter out the correct event
+            if (e) {
+               var event = events.filter(item => {
+                    return item.id == e.target.id
+                });
+                event = event[0]; 
+            }
+            else { //Else choose the first one
+                var event = events[0];
+            }
+            
+            //If the edit section is hidden
+            if (eventEdit.hidden == true) {
+                //Unhide it
+                document.getElementById('eventEdit').hidden = false;
+
+                //Add event listener for clicking outside element
+                setTimeout(() => {
+                    document.addEventListener('click', closeEventEvent);
+                },400);
+
+                // Format the date using JavaScript's Date API
+                const formatDate = (date) => {
+                    const d = new Date(date);
+                    const pad = num => num.toString().padStart(2, '0');
+                    
+                    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ` +
+                            `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+                };
+
+                // Populate the form inputs with the event data
+                document.getElementById('createdBy').textContent = "Created by: " + event.created_by_username;
+                document.getElementById('eventId').value = event.id;
+                document.getElementById('eventTitle').value = event.title;
+                document.getElementById('startTime').value = formatDate(event.start);
+                document.getElementById('endTime').value = formatDate(event.end);
+
+                //Adds friends to form if they exist
+                event.friends.forEach((friend) => {
+                    addFriend(friend.username, friend.id, false, event.user_created);
+                });
+
+                // Enable or disable elements based on user_created status
+                const isDisabled = !event.user_created;
+                ['optFriend', 'eventTitle', 'startTime', 'endTime', 'deleteEvent', 'saveEvent'].forEach(id => {
+                    document.getElementById(id).disabled = isDisabled;
+                });
+            }
+        }
+
+        //Resets form elements and hides edit section
+        function closeEvent() {
+            document.getElementById('eventEdit').hidden = true;
+            document.removeEventListener('click', closeEventEvent);
+
+            document.getElementById('friendsAdded').innerHTML = '';
+            document.getElementById('friendsResults').innerHTML = '';
+            document.getElementById('eventForm').reset();
+        }
+
+        //Function for when the edit form is submitted
+        async function submitEvent(e) {
+            e.preventDefault();
+
+            // Create FormData from your form
+            const formData = new FormData();
+
+            //Add data to formData
+            formData.append('id', document.getElementById('eventId').value);
+            formData.append('title', document.getElementById('eventTitle').value);
+            formData.append('start', document.getElementById('startTime').value);
+            formData.append('end', document.getElementById('endTime').value);
+
+            //Decide on url from if id exists
+            const url = formData.get('id') ? 'EventCalendarPHP-main/edit_event.php' : 'EventCalendarPHP-main/add_event.php';
+
+            // Send as regular POST data
+            await fetch(url, {
+                method: "POST",
+                body: formData
+            });
+
+
+            //This handles which hidden friends to delete and which to add. 
+            let friends = [];
+            let friendsRemove = [];
+            document.querySelectorAll('#friendsAdded div').forEach(div => {
+                if (div.hidden === true) { // Check if the div is hidden
+                    friendsRemove.push(div.id);
+                    div.remove();
+                } else if (div.classList.contains('adding')) {
+                    friends.push(div.id);
+                    div.classList.remove('adding');
+                }
+            });
+
+            // Send added friends data using FormData
+            const addFriendsData = new FormData();
+            friends.forEach((friendId, index) => {
+                addFriendsData.append(`friends[${index}]`, friendId);
+            });
+
+            await fetch('EventCalendarPHP-main/add_event_friends.php', {
+                method: "POST",
+                body: addFriendsData  // No Content-Type header needed
+            });
+
+            // Send removed friends data using FormData
+            const removeFriendsData = new FormData();
+            friendsRemove.forEach((friendId, index) => {
+                removeFriendsData.append(`friends[${index}]`, friendId);
+            });
+
+            await fetch('EventCalendarPHP-main/delete_event_friends.php', {
+                method: "POST",
+                body: removeFriendsData  // No Content-Type header needed
+            });
+
+            //Reload events
+            await initiateEvents();
+
+            //Close event edit
+            closeEvent();
+        }
+
+        //Function for removing event
+        async function deleteEvent(e) {
+            const id = document.getElementById('eventId').value; // Event ID
+                
+            //If id exists
+            if (id) {
+                try {
+                    // First delete the event
+                    const eventFormData = new FormData();
+                    eventFormData.append('id', id);
+                    
+                    const eventResponse = await fetch('EventCalendarPHP-main/delete_event.php', {
+                        method: "POST",
+                        body: eventFormData
+                    });
+                    
+                    if (!eventResponse.ok) throw new Error('Failed to delete event');
+                    
+                    // Then delete associated friends
+                    const friendsFormData = new FormData();
+                    friendsFormData.append('event_id', id);
+                    
+                    const friendsResponse = await fetch('EventCalendarPHP-main/delete_all_friends.php', {
+                        method: "POST",
+                        body: friendsFormData
+                    });
+                    
+                    if (!friendsResponse.ok) throw new Error('Failed to delete friends');
+                    
+                    
+                } catch (error) {
+                    console.error('Deletion error:', error);
+                    alert('Error deleting event: ' + error.message);
+                }
+            }
+
+            await initiateEvents();
+
+            closeEvent();
+        }
+
+        //Function for adding an event
+        async function addEvent(e) {
+            //Default date values @ midnight today and midnight tomorrow
+            const midnightToday = new Date();
+            midnightToday.setHours(0, 0, 0, 0); // Sets time to 00:00:00.000
+
+            const midnightTomorrow = new Date();
+            midnightTomorrow.setDate(midnightTomorrow.getDate() + 1); // Add 1 day
+            midnightTomorrow.setHours(0, 0, 0, 0); // Sets time to 00:00:00.000
+
+            //Create array of event object with appropriate info so we can reuse eventClick() 
+            const event = [{
+                created_by: <?php echo $_SESSION['user_id'] ?>,
+                created_by_username: '<?php echo $_SESSION['username'] ?>',
+                end: midnightTomorrow,
+                friends: [],
+                id: '',
+                start: midnightToday,
+                title: '',
+                user_created: true
+            }]
+
+            //Open editing for event
+            eventClick(null, event);
+        }
+
+        //Gets events, calls function to display them, and adds event listener to it
+        async function initiateEvents() {
+            var data = await getEvents();
+            displayEvents(data);
+            
+            const eventElements = document.getElementsByClassName('event');
+
+            for(var i = 0; i < eventElements.length; i++) {
+                eventElements[i].addEventListener("click", (e) => {
+                    eventClick(e, data);
+                });
+            }
+        }
+
+        //Displays today's date on mini-calendar
+        function displayDate() {
+            const DOW = document.getElementById('DOW');
+            const date = document.getElementById('date');
+
+            const today = new Date();
+
+            // Get day name (e.g., "Monday")
+            const dayName = today.toLocaleDateString('en-US', { weekday: 'long' }); 
+
+            DOW.innerHTML = `${dayName}, `;
+            date.innerHTML = today.getDate();
+        }
+
+        //Handles event listeners and functions for mini-calendar
+        async function handleEvents() {
+            displayDate();
+
+            await initiateEvents();
+
+            document.getElementById('closeEventEdit').addEventListener('click', closeEvent);
+
+            document.getElementById('eventForm').addEventListener('submit', await submitEvent);
+
+            document.getElementById('deleteEvent').addEventListener('click', await deleteEvent);
+
+            document.getElementById('addEvent').addEventListener('click', await addEvent);
+
+            document.getElementById('calendarLink').addEventListener('click', (e) => {
+                window.location.href = 'EventCalendarPHP-main';
+            });
+        }
+        
     </script>
+
 
 </head>
     
@@ -1106,6 +1555,22 @@ NOMINATIM API for sourcing the coordinates for the weather data
         <div id="friendsList"></div>
     </div>
 
+    <!-- Mini-Calendar Div -->
+    <div id="todaysEvents">
+        <div id="calendarHeader">
+            <div id="calendarLink">Open Calendar</div>
+            <p id="day">
+                <span id="DOW"></span>
+                <span id="date"></span>
+            </p>
+            <button type="button" id="addEvent">Add</button>
+        </div>
+        
+        <ul id="events">
+
+        </ul>
+    </div>
+
     <!-- Weather Display -->
     <aside id="weatherContainer" class="weather-container">
         <div class="weather-header" id="cityName">-</div>
@@ -1126,6 +1591,69 @@ NOMINATIM API for sourcing the coordinates for the weather data
         <div class="ticker-wrap" id="newsTicker"></div>
     </div>
 
+    <!-- Event Edit Div -->
+    <div id="eventEdit" hidden>
+        <div id="eventEditInner">
+            
+            <div id="editHeader">
+                <h5>Add/Edit Event</h5>
+                
+                <button type="button" id="closeEventEdit">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div id="createdBy"></div>
+            <div>
+                <form id="eventForm">
+                    <input type="hidden" id="eventId">
+                    <div>
+                        <label for="eventTitle">Event Title</label>
+                        <input type="text" id="eventTitle" required>
+                    </div>
+                    <div>
+                        <label for="startTime">Start Time</label>
+                        <input type="text" id="startTime" required>
+                    </div>
+                    <div>
+                        <label for="endTime">End Time</label>
+                        <input type="text" id="endTime" required>
+                    </div>
+                    <div>
+                        <select id="optFriend" name="optFriend">
+                            <option disabled selected value="">Add Friends</option>
+                            <?php
+                                //Provides all friends as a select option
+                                $user_id = $_SESSION['user_id'];
+
+                                $stmt = $conn->prepare("
+                                    SELECT users.username, users.id FROM friends
+                                    JOIN users ON (friends.user1_id = users.id OR friends.user2_id = users.id) 
+                                    WHERE (friends.user1_id = ? OR friends.user2_id = ?) AND users.id != ?
+                                ");
+                                $stmt->bind_param("iii", $user_id, $user_id, $user_id);
+                                $stmt->execute();
+                                $result = $stmt->get_result();
+                                // Display each user
+                                print_r($result);
+                                while ($row = $result->fetch_assoc()) {
+                                    
+                                    echo '<option value="'.$row['id'].'">'.$row['username'].'</option>';
+                                }
+                            ?>
+                        </select>
+                    </div>
+                    <div id="friends">
+                        <div id="friendsResults"></div>
+                        <strong>Added Friends:</strong>
+                        <div id="friendsAdded"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="saveEvent">Save Event</button>
+                    <button type="button" class="btn btn-danger" id="deleteEvent">Delete Event</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Fetch weather data on load
         handleWeather();
@@ -1137,6 +1665,8 @@ NOMINATIM API for sourcing the coordinates for the weather data
         setInterval(fetchNews, 3600000);
 
         profileEvents();
+
+        handleEvents();
     </script>
 
     <!-- Messaging window Script -->
@@ -1265,7 +1795,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                     // Create a list of users that you have unread messages from
                     let userList = document.getElementById("userList");
                     userList.innerHTML = "";
-                    fetch("/get_friends.php")
+                    fetch("get_friends.php")
                         .then(response => response.json())
                         .then(friends => {
                             // For each user
@@ -1728,5 +2258,5 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
 
 </body>
-
+<script src="./EventCalendarPHP-main/assets/js/friendScript.js"></script>
 </html>
