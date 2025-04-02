@@ -11,6 +11,7 @@ Revisions (For all event calendar):
 03/05/25: Ty Steinbach started looking into ways to impliment shared events
 03/16/25: Ty Steinbach got event sharing implimented to a static group of users
 03/07/25: Ty Steinbach added dynamic friend options and squashed some bugs
+03/25/25: Ty Steinbach changes users.id reference and method for fetching friends from database
 
 Sources:
 https://github.com/obadaKraishan/EventCalendarPHP
@@ -23,10 +24,10 @@ https://github.com/obadaKraishan/EventCalendarPHP
         exit();
     }
 
-    $host = '';
-    $user = '';
-    $pass = ''; 
-    $dbname = '';
+    $host = 'localhost';
+    $user = 'root';
+    $pass = 'mysql'; 
+    $dbname = 'csc450temp';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -71,7 +72,7 @@ https://github.com/obadaKraishan/EventCalendarPHP
 
     $row = $result->fetch_assoc();
 
-    $_SESSION['user_id'] = $row["id_user"];
+    $_SESSION['user_id'] = $row["id"];
 
     include 'templates/header.php';
     include 'templates/navbar.php';
@@ -113,11 +114,15 @@ https://github.com/obadaKraishan/EventCalendarPHP
                         <select id="optFriend" name="optFriend">
                             <option disabled selected value="">Add Friends</option>
                             <?php
-                                $stmt = $conn->prepare("SELECT users.id_user, users.username FROM users JOIN friends ON users.id_user = friends.user2_id WHERE friends.user1_id = ?");
-                                $stmt->execute([$_SESSION['user_id']]);
+                                $stmt = $conn->prepare("
+                                    SELECT users.id, users.username FROM friends
+                                    JOIN users ON (friends.user1_id = users.id OR friends.user2_id = users.id) 
+                                    WHERE (friends.user1_id = ? OR friends.user2_id = ?) AND users.id != ?
+                                ");
+                                $stmt->execute([$_SESSION['user_id'], $_SESSION['user_id'], $_SESSION['user_id']]);
                                 $friends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 foreach ($friends as $friend) {
-                                    echo '<option value="'.$friend['id_user'].'">'.$friend['username'].'</option>';
+                                    echo '<option value="'.$friend['id'].'">'.$friend['username'].'</option>';
                                 }
                             
                             ?>
