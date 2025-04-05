@@ -1,8 +1,9 @@
 <?php
+    // Start session, ensure user logged in, and have php return json data
     session_start();
     if (!isset($_SESSION['username'])) {
         header('Content-Type: application/json');
-        echo json_encode(['error' => 'usernot authenticated']);
+        echo json_encode(['error' => 'user not authenticated']);
         exit();
     }
 
@@ -18,11 +19,12 @@
     if ($conn->connect_error) {
         die("Failed to connect: " . $conn->connect_error);
     }
-    
+    // Set sender id as user id
     $sender_id = $_SESSION['user_id'] ?? null;
+
     // For each action
     if (isset($_GET['action']) || isset($_POST['action'])) {
-        // Set content type
+        // Set content type to return json
         header('Content-Type: application/json');
 
         // If the action is check messages
@@ -33,7 +35,7 @@
                 exit;
             }
             
-            // Run query
+            // Run db query to see if user got new messages indicated by seen = 0
             $userId = $_SESSION['user_id'];
             $query = "SELECT COUNT(*) as newMessages FROM messages WHERE receiver_id = ? AND seen = 0";
             if ($stmt = $conn->prepare($query)) {
@@ -56,19 +58,22 @@
 
         // If action is search users
         if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'search_users' && isset($_GET['query'])) {
-            // Display 10 max usernames
+            // Display a max of 10 usernames that match the query
             $stmt = $conn->prepare("SELECT id, username FROM users WHERE username LIKE CONCAT('%', ?, '%') LIMIT 10");
             $stmt->bind_param("s", $_GET['query']);
             $stmt->execute();
             $result = $stmt->get_result();
 
-            // Display results
-            if ($result->num_rows > 0) {
-                echo json_encode($result->fetch_all(MYSQLI_ASSOC));
-            } else {
-                echo json_encode(['message' => 'No users found']);
+            // Filter result to remove the loggedInUser
+            $filtered = [];
+            while ($row = $result->fetch_assoc()) {
+                if ($row['username'] !== $loggedInUser) {
+                    $filtered[] = $row;
+                }
             }
-            exit();
+            echo json_encode($filtered);
+
+            exit(); 
         }
 
         // If send message
@@ -79,10 +84,11 @@
             $sender_id = $_SESSION['user_id'];
             $seen = 1;
             
+            // Insert message into db
             $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message, seen) VALUES (?, ?, ?, ?)");
             $stmt->bind_param("iisi", $sender_id, $receiver_id, $message, $seen);
             
-            // Run query
+            // Submit query to db
             if ($stmt->execute()) {
                 echo json_encode(['success' => true]);
             } else {
@@ -93,10 +99,12 @@
 
         // If action is get messages
         if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'get_messages' && isset($_GET['receiver_id'])) {
+            // Get variables
             $receiver_id = $_GET['receiver_id'];
             $sender_id = $_SESSION['user_id'];
             $seen = 0;
 
+            // Get messages user recieved
             $query = "SELECT m.message, u.username, m.sent_at 
                     FROM messages m 
                     JOIN users u ON m.sender_id = u.id 
@@ -104,6 +112,7 @@
                     OR (m.sender_id = ? AND m.receiver_id = ?) 
                     ORDER BY m.sent_at ASC";
 
+            // Submit
             $stmt = $conn->prepare($query);
 
             if (!$stmt) {
@@ -129,10 +138,11 @@
         
         // If message seen request 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'mark_messages_seen') {
+            // Get variables
             $receiver_id = $_SESSION['user_id'];
             $sender_id = $_POST['sender_id'];
             
-            
+            // Update message with seen = 1
             $query = "UPDATE messages
                     SET seen = 1
                     WHERE receiver_id = ? AND sender_id = ? AND seen = 0";
@@ -207,6 +217,10 @@ Revisions:
 03/17/25: Ty Steinbach ensured a single session_start() and correct SQL references
 03/25/25: Ty Steinbach made some slight bug fixes
 03/26/25: Ty Steinbach added full mini-calendar functionality
+04/03/25: Dylan Theis added scalable friends view height, added Your friends to a new page, 
+          added apps tab, bug fixes, removed user from adding or messaging self, changed 
+          chatting icon if received new message
+04/04/25: Dylan Theis added minor changes to CSS, comments
 
 References:
 GNEWS API for sourcing 10 headlines 
@@ -433,7 +447,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         #chatHeader {
             background-color: #007aff;
             color: white;
-            padding: 2px;
+            padding: 15px;
             font-size: 18px;
             display: flex;
             align-items: center;
@@ -653,6 +667,22 @@ NOMINATIM API for sourcing the coordinates for the weather data
             border-width: 5px;
             border-style: solid;
             width: 200px;
+            max-height: 200px;
+            overflow: hidden;
+        }
+        #friendsScrollbar {
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        ::-webkit-scrollbar {
+            background-color: transparent;
+            width: 5px;
+            padding-right: 5px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: gray;
+            border-radius: 10px;
         }
         #acceptButton {
             background-color: springgreen;
@@ -797,6 +827,78 @@ NOMINATIM API for sourcing the coordinates for the weather data
             margin: 10px;
             border-radius: 7px;
             background-color: lightgrey;
+        }
+    </style>
+
+    <!-- Apps Style -->
+    <style>
+        .app-tab {
+            position: fixed;
+            left: 0;
+            bottom: 45px;
+            width: 60px;
+            max-width: 100%;
+            height: 20%;
+            background-color: darkgrey;
+            display: flex;
+            justify-content: column;
+            align-items: flex-start;
+            flex-direction: column;
+            transition: width 0.3s ease-in-out;
+            z-index: 1000;
+            border-radius: 0 10px 10px 0;
+            border-color: black;
+            border-width: 2px;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: row;
+            align-items: top;
+            justify-content: center;
+            visibility: hidden;
+        }
+        .app {
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            margin: 10px;
+            top: 0;
+        }
+        .app-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .app-title {
+            color: white;
+            margin-top: 5px;
+            font-size: 14px;
+            max-width: 50px;
+        }
+        .toggle-button {
+            background-color: lightgrey;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            position: absolute;
+            top: 40%;
+            left: 25px;
+            transform: translateX(-50%);
+            z-index: 9999;
+        }
+        .toggle-button:hover {
+            background-color: darkgrey;
+        }
+        .app-tab.open {
+            width: 850px;
+            height: 20%;
+            padding-left: 60px;
+        }
+        .app-tab.open .app-container {
+            visibility: visible;
         }
     </style>
 
@@ -1161,6 +1263,10 @@ NOMINATIM API for sourcing the coordinates for the weather data
             document.getElementById('profNavSettings').addEventListener('click', () => {
                 window.location.href = 'user_acct_settings.php';
             });
+
+            document.getElementById('friendsListNavSettings').addEventListener('click', () => {
+                window.location.href = 'viewFriends.php';
+            });
         }
         function displayProfileOptions(display) {
             const profileNav = document.getElementById("profileNav");
@@ -1511,11 +1617,21 @@ NOMINATIM API for sourcing the coordinates for the weather data
     <nav id="profileNav">
         <div id="profNavUsername"><?php echo $_SESSION['username']; ?></div>
         <div class="profNav" id="profNavSettings">Account Settings</div>
+        <div class="profNav" id="friendsListNavSettings">View Friends</div>
     </nav>
 
-        <!-- Messaging Icon -->
-        <div id="messageCenter">
+    <!-- Messaging Icon -->
+    <div id="messageCenter">
         <img src="https://www.svgrepo.com/show/304507/messages.svg" id="chatApp" alt="Chatting Icon">
+        
+        <script>
+            // Change logo if new message received otherwise neutral
+            let messageLogoChange = false;
+            function refreshMessageIcon() {
+                document.getElementById('chatApp').src = messageLogoChange ? "https://www.svgrepo.com/show/304513/messages-alert.svg" : "https://www.svgrepo.com/show/304507/messages.svg";
+            }
+            
+        </script>
     </div>
 
     <!-- Main Chat Window -->
@@ -1535,27 +1651,41 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
     <!-- Individual Chat Window -->
     <div id="individualChatWindow">
+        <!-- Box header -->
         <div id="chatHeader">
             <p id="chatUsername"></p>
             <p id="closeChat">✖</p>
         </div>
-        <div id="messageArea"></div>
-            <div id="newMessageIndicator" onclick="scrollToBottom()">New Messages</div>
 
+        <!-- All of your messages to the username -->
+        <div id="messageArea"></div>
+
+        <!-- Message Indicator when clicked brings to bottom of messages -->
+        <div id="newMessageIndicator" onclick="scrollToBottom()">New Messages</div>
+        
+        <!-- Space to type out your message -->
         <input type="text" id="messageInput" placeholder="Type a message...">
+
+        <!-- Send button -->
         <button id="sendMessage">Send</button>
     </div>
     
     <!-- Add Friends div-->
     <div id="friendFinder">
-        <h3>Search for friends</h3>
-        <input type="text" id="searchInput" placeholder="Add Friends...">
+        <div id="friendsScrollbar">
 
-        <div id="searchResults" class="dropdown"></div>
-        <h3>Friend Requests</h3>
-        <div id="friendRequests"></div>
-        <h3>Your Friends</h3>
-        <div id="friendsList"></div>
+            <!-- Friend Search bar -->
+            <h3>Search for friends</h3>
+            <input type="text" id="searchInput" placeholder="Add Friends...">
+            <div id="searchResults" class="dropdown">
+                <!-- Displays query results -->
+            </div>
+
+            <h3>Friend Requests</h3>
+            <div id="friendRequests">
+                <!-- Displays any incoming friend requests -->
+            </div>
+        </div>
     </div>
 
     <!-- Mini-Calendar Div -->
@@ -1685,13 +1815,13 @@ NOMINATIM API for sourcing the coordinates for the weather data
         
         
         
-        // Chat search bar opens and closes
+        // Chat search/messages appear opens and closes
         function toggleChatSearch() {
             let chatSearch = document.getElementById('chatWindowContainer');
             chatSearch.classList.toggle("open");
         }
 
-        // Event listener to toggle open or close chat search bar based on chat icon click
+        // Event listener to toggle open or close chat search bar based on chat icon click (message bubble)
         document.addEventListener("DOMContentLoaded", function() {
             document.getElementById("messageCenter").addEventListener("click", toggleChatSearch);
         });
@@ -1814,8 +1944,9 @@ NOMINATIM API for sourcing the coordinates for the weather data
                                 } else {
                                     userItem.innerHTML = `${user.username} <span class="new-message">New Message</span>`;
                                 }
-
-                                showNewMessageIndicator();
+                                // Change message bubble
+                                messageLogoChange = true;
+                                refreshMessageIcon();
                                 // When clicking the list element be brought to the individual chat window with the user
                                 userItem.addEventListener("click", () => openChat(user.id, user.username));
                                 userList.appendChild(userItem);
@@ -1872,7 +2003,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                             // Create username and last message
                             div.innerHTML = `
                                 <div class="chat-user">${user.username}</div>
-                                <div class="chat-message">Last message...</div>
+                                <div class="chat-message">View Messages...</div>
                             `;
                             results.appendChild(div);
                         });
@@ -1924,8 +2055,12 @@ NOMINATIM API for sourcing the coordinates for the weather data
             // Get your userId to mark as read
             activeChatUser = userId;
             document.getElementById('individualChatWindow').style.display = 'block';
-            // Load the messages from the user
+            // Load the messages from the user while scrolling to bottom
             loadMessages(userId);
+            scrollToBottom();
+            // Change messaging icon
+            messageLogoChange = false;
+            refreshMessageIcon();
             // Mark the message as read and refresh your unread message users list
             fetch("home.php?action=mark_messages_seen", {
                 method: "POST",
@@ -2090,6 +2225,9 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: `action=mark_messages_seen&sender_id=${activeChatUser}`
             }).then(() => loadUnreadMessageUsers());
+            // Change message logo since you have seen new message and hide indicator
+            messageLogoChange = false;
+            refreshMessageIcon();
             hideNewMessageIndicator();
             
         }
@@ -2104,17 +2242,17 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         
         
-        // Call checkForNewMessages every 10 seconds
+        // Call checkForNewMessages every 5 seconds
         setInterval(() => {
             if (activeChatUser) {
                 checkForNewMessages(activeChatUser);
             }
-        }, 2000);
+        }, 5000);
 
         // Auto-refresh unread users list every 10 seconds
-        setInterval(loadUnreadMessageUsers, 2000);
+        setInterval(loadUnreadMessageUsers, 10000);
 
-        // Load messages every 10 seconds
+        // Load messages every 2 seconds
         setInterval(() => {
             if (activeChatUser) {
                 loadMessages(activeChatUser);
@@ -2205,28 +2343,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 });
         }
 
-        // Load accepted friend requests
-        function loadFriendsList() {
-            // Get status "accepted" friend requests
-            fetch('friends_list.php')
-                .then(response => response.json())
-                .then(data => {
-                    let friendsDiv = document.getElementById('friendsList');
-                    friendsDiv.innerHTML = "";
-                    // If no friends
-                    if (data.length === 0) {
-                        friendsDiv.innerHTML = "<p>No friends yet</p>";
-                        return;
-                    }
-                    // For each friend 
-                    data.forEach(friend => {
-                        // Create new div with their username
-                        let div = document.createElement('div');
-                        div.textContent = friend.username;
-                        friendsDiv.appendChild(div);
-                    });
-                });
-        }
+        
 
         // Event listener to run on selected usernames from the dropdown
         document.addEventListener("DOMContentLoaded", function() {
@@ -2251,13 +2368,87 @@ NOMINATIM API for sourcing the coordinates for the weather data
             });
         });
 
+        // Initial Run
+        loadFriendRequests();
+        // Run requests every 60 seconds
+        setInterval(loadFriendRequests, 60000);
 
-        // Run requests every second
-        setInterval(loadFriendRequests, 1000);
-        setInterval(loadFriendsList, 1000);
     </script>
 
+    <!-- Apps -->
+    <div id="app-tab" class="app-tab">
+        <button id="toggle-button" class="toggle-button">Apps</button>
+        <div id="app-container" class="app-container">
+            <!-- Individual Apps -->
+            <div class="app" onclick="window.open('http://secretdoor.notepadwebdevelopment.com/');">
+                <img src="./AppLogos/theSecretDoor.png" alt="The Secret Door" class="app-icon">
+                <p class="app-title">The Secret Door</p>
+            </div>
 
+            <div class="app" onclick="window.open('https://theuselessweb.com/');">
+                <img src="./AppLogos/theUselessWeb.png" alt="The Useless Web" class="app-icon">
+                <p class="app-title">The Useless Web</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://www.reddit.com/');">
+                <img src="./AppLogos/reddit.png" alt="Reddit" class="app-icon">
+                <p class="app-title">Reddit</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://apod.nasa.gov/apod/astropix.html');">
+                <img src="./AppLogos/NASAsPictureOfTheDay.png" alt="NASA's Picture of the Day" class="app-icon">
+                <p class="app-title">NASA's Picture of the Day</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://www.history.com/this-day-in-history/');">
+                <img src="./AppLogos/todayInHistory.png" alt="Today In History" class="app-icon">
+                <p class="app-title">Today In History</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://quickdraw.withgoogle.com/');">
+                <img src="./AppLogos/quickDraw.png" alt="Quick, Draw!" class="app-icon">
+                <p class="app-title">Quick, Draw!</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://costcodle.com/');">
+                <img src="./AppLogos/costcodle.png" alt="Costcodle" class="app-icon">
+                <p class="app-title">Costcodle</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://heardlewordle.io/');">
+                <img src="./AppLogos/heardle.png" alt="Heardle" class="app-icon">
+                <p class="app-title">Heardle</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://globle-game.com/');">
+                <img src="./AppLogos/globle.png" alt="Globle" class="app-icon">
+                <p class="app-title">Globle</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://games.oec.world/en/tradle/');">
+                <img src="./AppLogos/tradle.png" alt="Tradle" class="app-icon">
+                <p class="app-title">Tradle</p>
+            </div>
+
+            <div class="app" onclick="window.open('https://www.nytimes.com/games/wordle/index.html');">
+                <img src="./AppLogos/wordle.png" alt="Wordle" class="app-icon">
+                <p class="app-title">Wordle</p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Apps JS -->
+    <script>
+        const toggleButton = document.getElementById('toggle-button');
+        const appTab = document.getElementById('app-tab');
+
+        // If toggle button pressed open appTab
+        toggleButton.addEventListener('click', function() {
+            appTab.classList.toggle('open');
+        });
+
+    </script>
 
 
 </body>
