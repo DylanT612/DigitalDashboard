@@ -7,6 +7,8 @@
         exit();
     }
 
+    include 'EventCalendarPHP-main/set_user_id.php';
+
     // Database connection details
     $host = '';
     $user = '';
