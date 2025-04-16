@@ -22,10 +22,10 @@ $_SESSION['reset'] = 0;
 
 // Database connection details
 
-$host = '';
-$user = '';
-$pass = ''; 
-$dbname = '';
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'dashboardDB';
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -61,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (password_verify($password,   $user['password'])) {
                 // Log user in and progress them to homepage
                 $_SESSION['username'] = $user['username'];
+                $_SESSION['user_id'] = $user['id'];
 
                 //If the user is reseting password
                 if($user['resetting'] === 1) {

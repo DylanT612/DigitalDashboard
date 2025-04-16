@@ -2,16 +2,26 @@
 session_start();
 require 'includes/db.php';
 
-if (isset($_POST['friends'])) {
-    foreach ($_POST['friends'] as $friend) {
-        $stmt = $conn->prepare("INSERT INTO shared_events (id_event, id_user) VALUES (?, ?)");
-        if ($stmt->execute([$_SESSION['currentEventId'], $friend])) {
-            error_log("Successfully added friend with ID: $friend to event ID: " . $_SESSION['currentEventId']);
-        } else {
-            error_log("Failed to add friend with ID: $friend to event ID: " . $_SESSION['currentEventId']);
-        }
+header('Content-Type: application/json');
+
+// ✅ Make sure required fields exist
+if (!isset($_POST['currentEventId']) || !isset($_POST['friends'])) {
+    echo json_encode(['success' => false, 'error' => 'Invalid request']);
+    exit;
+}
+
+$eventId = $_POST['currentEventId'];
+$friends = $_POST['friends'];
+
+try {
+    $stmt = $conn->prepare("INSERT INTO shared_events (id_event, id_user) VALUES (?, ?)");
+
+    foreach ($friends as $friendId) {
+        $stmt->execute([$eventId, $friendId]);
     }
-} else {
-    error_log("No friends data found in POST request.");
+
+    echo json_encode(['success' => true]);
+} catch (PDOException $e) {
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
 ?>

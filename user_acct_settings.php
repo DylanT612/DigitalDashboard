@@ -6,10 +6,10 @@
     }
 
     // Database connection details
-    $host = '';
-    $user = '';
-    $pass = ''; 
-    $dbname = '';
+    $host = 'localhost';
+    $user = 'root';
+    $pass = 'mysql'; 
+    $dbname = 'dashboardDB';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -150,7 +150,7 @@
             }
         }        
     }
-
+    
     if (!empty($errorMessage)) {
         // The error message will be used in the HTML to display the error
     }

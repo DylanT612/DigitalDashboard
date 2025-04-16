@@ -10,14 +10,13 @@ Revisions:
 2/4/25: Keagan Haar created styling and input html
 02/16/25: Ty Steinbach added PHP functionality to change the default value for a user profile pic
 02/27/25: Ty Steinbach added more secure SQL statement with added fields to include country functionality, along with the required HTML and JS
-04/04/25: Dylan Theis restructured form fields
 -->
 <?php
-// Database connection details
-$host = '';
-$user = '';
-$pass = '';
-$dbname = '';
+// Database connection
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'dashboardDB';
 
 // Create connection
 $conn = new mysqli($host, $user, $pass, $dbname);
@@ -248,31 +247,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="bday">Birth Date (Optional)</label>
                 <input type="date" id="bday" name="bday" placeholder="Enter your birth date">
 
-                <!--City text input-->
-                <label for="txtCity">City</label>
-                <input type="text" id="txtCity" name="city" placeholder="Enter the city you reside in">
-
-                <!-- State select -->
-                <select name="state" id="optState" hidden>
-                    <!-- Dropdown menu of all states -->
-                    <option disabled selected value>Choose State</option>
-                    <?php 
-                        $sql = "SELECT * FROM states";
-                        if($stmt = $conn->prepare($sql)) {
-                            $stmt->execute();
-                            if($stmt->errno) {
-                                print_r("Could not execute prepared statement");
-                            }
-                            $result = $stmt->get_result();
-                            $stmt->free_result();
-                            $stmt->close();
-                        }
-                        while($row = $result->fetch_assoc()) {    
-                            echo "<option value='" . $row['stateCode'] . "'>" . $row['state'] . "</option>\n";
-                        }
-                    ?>
-                </select>
-
                 <!-- Country select -->
                 <label for="country">Country</label>
                 <select name="country" id="optCountry" value="">
@@ -295,62 +269,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ?>
                 </select>
 
+                <!-- State select -->
+                <select name="state" id="optState" hidden>
+                    <!-- Dropdown menu of all states -->
+                    <option disabled selected value>Choose State</option>
+                    <?php 
+                        $sql = "SELECT * FROM states";
+                        if($stmt = $conn->prepare($sql)) {
+                            $stmt->execute();
+                            if($stmt->errno) {
+                                print_r("Could not execute prepared statement");
+                            }
+                            $result = $stmt->get_result();
+                            $stmt->free_result();
+                            $stmt->close();
+                        }
+                        while($row = $result->fetch_assoc()) {    
+                            echo "<option value='" . $row['stateCode'] . "'>" . $row['state'] . "</option>\n";
+                        }
+                    ?>
+                </select>
+
+                <!--City text input-->
+                <label for="txtCity">City</label>
+                <input type="text" id="txtCity" name="city" placeholder="Enter the city you reside in">
+
                 <label for="profile-picture">Profile Picture (PNG and JPEG Files)</label>
                 <input type="file" id="profile-picture" name="picture" accept="image/png, image/jpg">
 
                 <button type="submit">Create Account</button>
                 <p><a href="login.php" class="link-button">Back to Login</a></p>
             </form>
-            
-
-        </div>
-
-        <script type="module">
-            import { eventOptAmerica } from './src/stateDisplayHandler.js';
-
-            const form = document.querySelector('form');
-            const passwordInput = document.getElementById('password');
-            const confirmPasswordInput = document.getElementById('confirm-password');
-
-            // Function to display or hide error messages
-            function handleError(input, message) {
-                let errorElement = input.nextElementSibling;
-                if (!errorElement || !errorElement.classList.contains('error')) {
-                    errorElement = document.createElement('span');
-                    errorElement.classList.add('error');
-                    input.parentNode.insertBefore(errorElement, input.nextSibling);
-                }
-                errorElement.textContent = message || '';
-            }
-
-            function submitEvent(event) {
-                let valid = true;
-                const password = passwordInput.value;
-                const confirmPassword = confirmPasswordInput.value;
-
-                // Assure that our password is intially 8 characters long
-                if (password.length < 8) {
-                    handleError(passwordInput, 'Password must be at least 8 characters long.');
-                    valid = false;
-                } else {
-                    handleError(passwordInput);
-                }
-
-                // Confirm that passwords do match
-                if (confirmPassword !== password) {
-                    handleError(confirmPasswordInput, 'Passwords do not match.');
-                    valid = false;
-                } else {
-                    handleError(confirmPasswordInput);
-                }
-
-                // If we error out, ensure the form cannot be submitted untils changes are made
-                if (!valid) event.preventDefault();
-            }
-
-            //Add event listener to the country select element to see if USA was selected
-            optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
-        </script>
 
         <script>
             form.addEventListener('submit', submitEvent);

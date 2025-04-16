@@ -1,0 +1,115 @@
+Array
+(
+)
+Array
+(
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [currentEventId] => 49
+)
+Array
+(
+    [currentEventId] => 50
+    [friends] => Array
+        (
+            [0] => 2
+            [1] => 
+        )
+
+)
+Array
+(
+    [currentEventId] => 51
+    [friends] => Array
+        (
+            [0] => 2
+            [1] => 
+        )
+
+)
+Array
+(
+    [currentEventId] => 51
+)
+Array
+(
+    [currentEventId] => 52
+    [friends] => Array
+        (
+            [0] => 2
+            [1] => 
+        )
+
+)
+Array
+(
+    [currentEventId] => 53
+)
+Array
+(
+    [currentEventId] => 54
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [currentEventId] => 55
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [currentEventId] => 55
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [currentEventId] => 56
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [currentEventId] => 56
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)
+Array
+(
+    [currentEventId] => 55
+    [friends] => Array
+        (
+            [0] => 2
+        )
+
+)

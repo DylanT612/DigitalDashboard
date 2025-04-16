@@ -3,10 +3,10 @@ session_start();
 header('Content-Type: application/json');
 
 // Database connection details
-$host = '';
-$user = '';
-$pass = '';
-$dbname = '';
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'dashboardDB';
 
 // Database connection
 $conn = new mysqli($host, $user, $pass, $dbname);

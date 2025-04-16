@@ -2,11 +2,17 @@
 session_start();
 header('Content-Type: application/json');
 
+// Check required POST data
+if (!isset($_POST['action']) || !isset($_POST['request_id'])) {
+    echo json_encode(["error" => "Missing POST data"]);
+    exit;
+}
+
 // Database connection details
-$host = '';
-$user = '';
-$pass = '';
-$dbname = '';
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'dashboardDB';
 
 // Database connection
 $conn = new mysqli($host, $user, $pass, $dbname);
@@ -25,6 +31,11 @@ $stmt = $conn->prepare("SELECT sender_id, receiver_id FROM friend_requests WHERE
 $stmt->bind_param("i", $request_id);
 $stmt->execute();
 $request = $stmt->get_result()->fetch_assoc();
+file_put_contents("debug_request.txt", print_r([
+    'request_id' => $request_id,
+    'request' => $request,
+    'session_user_id' => $user_id
+], true));
 // For a mistatch or error
 if (!$request || $request['receiver_id'] != $user_id) {
     die(json_encode(["error" => "Invalid request."]));

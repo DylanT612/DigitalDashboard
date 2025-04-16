@@ -1,19 +1,16 @@
 <?php
-    // Start session, ensure user logged in, and have php return json data
     session_start();
     if (!isset($_SESSION['username'])) {
         header('Content-Type: application/json');
-        echo json_encode(['error' => 'user not authenticated']);
+        echo json_encode(['error' => 'usernot authenticated']);
         exit();
     }
 
-    include 'EventCalendarPHP-main/set_user_id.php';
-
     // Database connection details
-    $host = '';
-    $user = '';
-    $pass = ''; 
-    $dbname = '';
+    $host = 'localhost';
+    $user = 'root';
+    $pass = 'mysql'; 
+    $dbname = 'dashboardDB';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -21,12 +18,12 @@
     if ($conn->connect_error) {
         die("Failed to connect: " . $conn->connect_error);
     }
-    // Set sender id as user id
+    
     $sender_id = $_SESSION['user_id'] ?? null;
 
     // For each action
     if (isset($_GET['action']) || isset($_POST['action'])) {
-        // Set content type to return json
+        // Set content type
         header('Content-Type: application/json');
 
         // If the action is check messages
@@ -37,7 +34,7 @@
                 exit;
             }
             
-            // Run db query to see if user got new messages indicated by seen = 0
+            // Run query
             $userId = $_SESSION['user_id'];
             $query = "SELECT COUNT(*) as newMessages FROM messages WHERE receiver_id = ? AND seen = 0";
             if ($stmt = $conn->prepare($query)) {
@@ -58,55 +55,64 @@
             exit;
         }
 
-        // If action is search users
-        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'search_users' && isset($_GET['query'])) {
-            // Display a max of 10 usernames that match the query
+        if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'search_users' && isset($_GET['query'])) {
+            header('Content-Type: application/json');
+        
+            $query = trim($_GET['query']);
+        
             $stmt = $conn->prepare("SELECT id, username FROM users WHERE username LIKE CONCAT('%', ?, '%') LIMIT 10");
-            $stmt->bind_param("s", $_GET['query']);
+            $stmt->bind_param("s", $query);
             $stmt->execute();
             $result = $stmt->get_result();
-
-            // Filter result to remove the loggedInUser
-            $filtered = [];
-            while ($row = $result->fetch_assoc()) {
-                if ($row['username'] !== $loggedInUser) {
-                    $filtered[] = $row;
-                }
+        
+            if ($result->num_rows > 0) {
+                echo json_encode($result->fetch_all(MYSQLI_ASSOC));
+            } else {
+                echo json_encode([]);
             }
-            echo json_encode($filtered);
-
-            exit(); 
+        
+            exit;
         }
 
-        // If send message
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'send_message') {
-            // Get variables
-            $message = $_POST['message'];
-            $receiver_id = $_POST['receiver_id'];
-            $sender_id = $_SESSION['user_id'];
-            $seen = 1;
+            header('Content-Type: application/json');
             
-            // Insert message into db
+            // Validate session
+            if (!isset($_SESSION['user_id'])) {
+                echo json_encode(['error' => 'User not authenticated']);
+                exit;
+            }
+        
+            // Validate input
+            if (!isset($_POST['message']) || !isset($_POST['receiver_id'])) {
+                echo json_encode(['error' => 'Missing message or receiver ID']);
+                exit;
+            }
+        
+            $sender_id = $_SESSION['user_id'];
+            $receiver_id = $_POST['receiver_id'];
+            $message = $_POST['message'];
+            $seen = 0;
+        
             $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message, seen) VALUES (?, ?, ?, ?)");
             $stmt->bind_param("iisi", $sender_id, $receiver_id, $message, $seen);
-            
-            // Submit query to db
+        
             if ($stmt->execute()) {
                 echo json_encode(['success' => true]);
             } else {
                 echo json_encode(['error' => 'Failed to send message']);
             }
-            exit();
+        
+            exit;
         }
+        
 
         // If action is get messages
         if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] == 'get_messages' && isset($_GET['receiver_id'])) {
-            // Get variables
             $receiver_id = $_GET['receiver_id'];
             $sender_id = $_SESSION['user_id'];
             $seen = 0;
 
-            // Get messages user recieved
             $query = "SELECT m.message, u.username, m.sent_at 
                     FROM messages m 
                     JOIN users u ON m.sender_id = u.id 
@@ -114,7 +120,6 @@
                     OR (m.sender_id = ? AND m.receiver_id = ?) 
                     ORDER BY m.sent_at ASC";
 
-            // Submit
             $stmt = $conn->prepare($query);
 
             if (!$stmt) {
@@ -140,11 +145,10 @@
         
         // If message seen request 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['action'] === 'mark_messages_seen') {
-            // Get variables
             $receiver_id = $_SESSION['user_id'];
             $sender_id = $_POST['sender_id'];
             
-            // Update message with seen = 1
+            
             $query = "UPDATE messages
                     SET seen = 1
                     WHERE receiver_id = ? AND sender_id = ? AND seen = 0";
@@ -189,13 +193,12 @@
         }
     }
 ?>
-
 <!DOCTYPE html>
 <!--
 Home Page (home)
 CSC 450 Capstone Final Project Byethost
 Dylan Theis: theisd@csp.edu
-Keagan Harr: 
+Keagan Haar: haark@csp.edu
 Ty Steinbach:
 1/25/25
 Revisions: 
@@ -217,13 +220,7 @@ Revisions:
 03/15/25: Dylan Theis added friending badge for users who are friends
 03/16/25: Dylan Theis added styles to friending div
 03/17/25: Ty Steinbach ensured a single session_start() and correct SQL references
-03/25/25: Ty Steinbach made some slight bug fixes
-03/26/25: Ty Steinbach added full mini-calendar functionality
-04/03/25: Dylan Theis added scalable friends view height, added Your friends to a new page, 
-          added apps tab, bug fixes, removed user from adding or messaging self, changed 
-          chatting icon if received new message
-04/04/25: Dylan Theis added minor changes to CSS, comments
-
+04/15/25: Keagan Haar Finished all styling and brought together all functioning pieces
 References:
 GNEWS API for sourcing 10 headlines 
 OPEN-METEO API for sourcing weather data
@@ -234,682 +231,14 @@ NOMINATIM API for sourcing the coordinates for the weather data
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <style>
-        /*Header Styles*/
-        header {
-            display: flex;
-            justify-content: space-between;
-            margin: 20px;
-        }
-        h1 {
-            width: fit-content;
-            height: fit-content;
-        }
-        #profileContainer {
-            background-color: lightgray;
-            width: 60px;
-            height: 60px;
-            text-align: center;
-            border-radius: 100%;
-            z-index: 2;
-        }
-        div#profileContainer:hover {
-            cursor: pointer;
-        }
-        #profilePic {
-            margin-top: 9px;
-        }
-        #profileNav {
-            display: none;
-            grid-template-columns: 100%;
-            grid-template-rows: 60px 20px;
-            justify-content: space-between;
-            row-gap: 10px;
-            position: absolute;
-            right: 20px;
-            top: 15px;
-            min-width: 200px;
-            min-height: 250px;
-            color: white;
-            background-color: rgb(93, 93, 104);
-            border-radius: 10px;
-            padding: 10px;
-            z-index: 1;
-        }
-        #profNavUsername {
-            display: block;
-            height: fit-content;
-            font-size: 15pt;
-            font-weight: bold;
-            margin-right: 80px;
-        }
-        .profNav {
-            text-align: center;
-            display: block;
-            width: 90%;
-            height: fit-content;
-            font-size: 15pt;
-            padding: 5px;
-            margin-left: auto;
-            margin-right: auto;
-            border-radius: 5px;
-            background-color: rgb(33, 33, 53);
-        }
-        .profNav:hover {
-            background-color:rgb(16, 16, 26);
-            cursor: pointer;
-        }
-        /* News Ticker Container */
-        .news-ticker {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: black;
-            color: white;
-            overflow: hidden;
-            white-space: nowrap;
-            padding: 10px 0;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-        }
-
-        /* Scrolling Wrapper */
-        .ticker-wrap {
-            display: flex;
-            width: max-content;
-            animation: ticker-scroll 250s linear infinite; 
-        }
-
-        /* Each News Item */
-        .ticker-item {
-            display: inline-block;
-            margin-right: 60px; 
-            white-space: nowrap;
-        }
-
-        .ticker-item a {
-            color: white;
-            text-decoration: none;
-        }
-
-        .ticker-item a:hover {
-            text-decoration: underline;
-        }
-
-        /* Scrolling Animation */
-        @keyframes ticker-scroll {
-            from { transform: translateX(0); } 
-            to { transform: translateX(-50%); } 
-        }
-
-        /* Weather Container */
-        .weather-container {
-            background-color: rgb(33, 33, 53);
-            position: fixed;
-            right: 20px;
-            top: 90px;
-            width: 350px;
-            height: 80vh;
-            overflow: hidden;
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-            text-align: center;
-            font-family: Arial, sans-serif;
-        }
-
-        /* Weather container color based on what time it is */
-        .morning { background: blue; }
-        .afternoon { background: light blue; }
-        .evening { background: darkblue; }
-        .night { background: darkslateblue; }
-
-        /* Weather Details */
-        .weather-header { font-size: 40px; font-weight: bold; }
-        .weather-today { display: flex; flex-direction: column; align-items: center; }
-        .weather-icon { width: 50px; margin: 10px 0; }
-        .weather-temp { font-size: 28px; font-weight: bold; }
-        .weather-feels-like {font-size: 1em; margin-top: 5px; }
-        .weather-desc { font-size: 16px; margin-top: 5px; display: flex; }
-        .clothing-rec { font-size: 12px; margin-top: 10px; font-style: italic; display: flex; }
-
-        /* Forecast */
-        #weeklyForecast {
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr);
-            margin-top: 20px;
-            gap: 10px;
-        }
-
-        /* Each forecast day box */
-        .forecast-day {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 90%;
-            background: lightgray;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Left side of forecast day box */
-        .forecast-left {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Right side for the icon */
-        .forecast-right {
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-        }
-
-        /* Styling for day name and temperatures */
-        .forecast-day-name {
-            font-weight: bold;
-            font-size: 1.2em;
-            color: navy;
-        }
-
-        .forecast-temp {
-            font-size: 1em;
-            color: dark grey;
-        }
-
-        /* Forecast icon styling */
-        .forecast-icon {
-            width: 40px;
-            height: 40px;
-            object-fit: contain;
-        }
-
-
-    </style>
-
-    <!-- Chat Style -->
-    <style>
-        /* User query dropdown */
-        #chatListContainer {
-            width: 150px;
-            background: white;
-            border: 1px solid #ccc;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 1000;
-            display: none;
-            position: absolute;
-        }
-
-        /* Individual chat window header */
-        #chatHeader {
-            background-color: #007aff;
-            color: white;
-            padding: 15px;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            border-radius: 3px;
-            cursor: grab;
-            text-align: center;
-            justify-content: center;
-            position: relative;
-            font-weight: bold;
-        }
-
-        #chatHeader:hover {
-            cursor: grab;
-        }
-
-        #chatHeader.on-click {
-            cursor: grabbing;
-        }
-
-        /* Close button */
-        #closeChat {
-            font-size: 20px;
-            cursor: pointer;
-            user-select: none;
-            color: red;
-            position: absolute;
-            right: 8px;
-        }
-
-        /* text area */
-        #messageArea {
-            margin: 2px;
-            max-height: 250px;
-            overflow-y: auto;
-            width: 90%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            position: relative;
-            overflow-y: auto;
-            z-index: 1;
-        }
-
-        #messageArea p {
-            margin: 5px 0;
-            padding: 8px;
-            border-radius: 5px;
-            max-width: 80%;
-        }
-
-        #messageInput {
-            width: 90%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-
-        button {
-            margin: 5px;
-            padding: 10px;
-            background-color: #007aff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-align: center;
-        }
-
-        /* Each item in the dropdown */
-        .chat-list-item {
-            padding: 10px;
-            border-bottom: 1px solid #ddd;
-            cursor: pointer;
-        }
-
-        .chat-list-item:hover {
-            background-color: #f1f1f1;
-        }
-
-        #individualChatWindow {
-            width: 300px;
-            max-height: 80vh;
-            background-color: white;
-            position: absolute;
-            top: 20px;
-            right: 300px;
-            display: none;
-            border: 3px solid black;
-            border-radius: 5px;
-            display: none;
-            z-index: 100;
-        }
-
-        #messageCenter #chatApp{
-            height: 50px;
-            width: 50px;
-            right: 120px;
-            top: 25px;
-            position: absolute;
-        }
-
-        #newMessageIndicator {
-            position: absolute;
-            bottom: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #007bff;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            cursor: pointer;
-            display: none;
-            font-size: 14px;
-            font-weight: bold;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
-            z-index: 9999;
-        }
-
-        .message {
-            font-size: 16px;
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 8px;
-            word-wrap: break-word;
-            display: inline-block;
-            max-width: 70%;
-            display: flex;
-        }
-
-        .user-message {
-            background-color: #007aff;
-            color: white;
-            text-align: right;
-            margin-left: auto;
-            max-width: fit-content;
-        }
-
-        .other-message {
-            background-color: lightgray;
-            color: black;
-            text-align: left;
-            margin-right: auto;
-            max-width: fit-content;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background-color: red;
-            color: white;
-            font-size: 12px;
-            padding: 4px 6px;
-            border-radius: 50%;
-            display: none;
-        }
-
-        .new-message {
-            background-color: red;
-            color: white;
-            font-size: 12px;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 5px;
-        }
-
-        #chatWindowContainer {
-            display: none;
-            right: 200px;
-            top: 25px;
-            position: absolute;
-            z-index: 1001;
-        }
-
-        #chatWindowContainer.open {
-            display: block;
-        }
-
-        #searchUser {
-            display: block !important;
-        }
-        #userList {
-            margin: 3px;
-        }
-
-    </style>
-
-    <!-- Friend Style -->
-    <style>
-        .dropdown {
-            display: none;
-            position: absolute;
-            background: white;
-            border: 1px solid #ccc;
-            padding: 10px;
-        }
-        .dropdown.show {
-            display: block;
-        }
-        #friendsIndicator {
-            height: 20px;
-            width: 20px;
-            display: inline-flex;
-            align-items: center;
-            margin-bottom: -5px;
-        }
-        #friendRequestButton {
-            margin: 2px;
-            padding: 3px;
-        }
-        #friendFinder {
-            float: left;
-            margin: 5px;
-            padding: 0px 10px 5px 15px;
-            border-radius: 25px;
-            background-color: violet;
-            border-color: darkviolet;
-            border-width: 5px;
-            border-style: solid;
-            width: 200px;
-            max-height: 200px;
-            overflow: hidden;
-        }
-        #friendsScrollbar {
-            max-height: 200px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        ::-webkit-scrollbar {
-            background-color: transparent;
-            width: 5px;
-            padding-right: 5px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: gray;
-            border-radius: 10px;
-        }
-        #acceptButton {
-            background-color: springgreen;
-            margin: 3px;
-            padding: 3px;
-        }
-        #declineButton {
-            background-color: red;
-            margin: 3px;
-            padding: 3px;
-        }
-        #friendFinder h3, p {
-            margin: 0px 0px 0px 0px;
-        }
-        #friendFinder input {
-            background-color: pink;
-        }
-
-    </style>
-
-
-    <!--Calendar Style-->
-    <style>
-        #todaysEvents {
-            width: 225px;
-            min-height: 230px;
-            background-color: rgb(42, 42, 48);
-            border-radius: 10px;
-            position: fixed;
-            top: 300px;
-        }
-        #todaysEvents button {
-            background-color: rgb(90, 90, 192);
-            cursor: pointer;
-        }
-        #todaysEvents button:hover {
-            background-color: rgb(64, 64, 136);
-            cursor: pointer;
-        }
-        #calendarHeader {
-            display: grid;
-            grid-template-columns: auto auto;
-            align-items: center;
-            background-color: lightcoral;
-            height: fit-content;
-            padding: 5px;
-        }
-        #calendarLink {
-            grid-column: 1 / span 2;
-            text-align: center;
-            background-color: rgb(218, 156, 156);
-            padding: 5px;
-        }
-        #calendarLink:hover {
-            background-color: rgb(190, 122, 122);
-            cursor: pointer;
-        }
-        #day {
-            height: fit-content;
-        }
-        #day span {
-            font-size: 15pt;
-            height: fit-content;
-        }
-        #date {
-            text-align: right;
-        }
-        #events {
-            padding: 3px;
-            list-style-type: none;
-        }
-        #events li {
-            background-color: rgb(132, 132, 206);
-            padding: 5px;
-        }
-
-        #events li:hover {
-            background-color: rgb(102, 102, 160);
-            cursor: pointer;
-        }
-
-        #eventEdit {
-            position: absolute;
-            top: 30%;
-            left: 30%;
-            height: 400px;
-            width: 300px;
-            background-color: grey;
-            padding: 10px;
-        }
-
-        #eventEditInner {
-            display: grid;
-            gap: 10px;
-        }
-
-        #eventEdit button {
-            background-color: rgb(90, 90, 192);
-            cursor: pointer;
-        }
-
-        #eventEdit button:hover {
-            background-color: rgb(64, 64, 136);
-            cursor: pointer;
-        }
-
-        #eventEdit button:disabled {
-            background-color: rgb(132, 132, 172);
-        }
-
-        #eventEdit button:disabled:hover {
-            background-color: rgb(132, 132, 172);
-            cursor: default;
-        }
-
-        #editHeader {
-            display: grid;
-            grid-template-columns: auto auto;
-            align-items: center;
-        }
-
-        #editHeader h5 {
-            font-size: 17pt;
-            margin-top: 0;
-            margin-bottom: 0;
-        }
-
-        #editHeader button {
-            width: 40px;
-            height: 40px;
-        }
-
-        #eventForm {
-            display: grid;
-            grid-template-columns: auto;
-            gap: 10px;
-        }
-
-        #friendsAdded {
-            min-width: 80%;
-            min-height: 40px;
-            margin: 10px;
-            border-radius: 7px;
-            background-color: lightgrey;
-        }
-    </style>
-
-    <!-- Apps Style -->
-    <style>
-        .app-tab {
-            position: fixed;
-            left: 0;
-            bottom: 45px;
-            width: 60px;
-            max-width: 100%;
-            height: 20%;
-            background-color: darkgrey;
-            display: flex;
-            justify-content: column;
-            align-items: flex-start;
-            flex-direction: column;
-            transition: width 0.3s ease-in-out;
-            z-index: 1000;
-            border-radius: 0 10px 10px 0;
-            border-color: black;
-            border-width: 2px;
-        }
-        .app-container {
-            display: flex;
-            flex-direction: row;
-            align-items: top;
-            justify-content: center;
-            visibility: hidden;
-        }
-        .app {
-            text-align: center;
-            margin-bottom: 20px;
-            cursor: pointer;
-            margin: 10px;
-            top: 0;
-        }
-        .app-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-        .app-title {
-            color: white;
-            margin-top: 5px;
-            font-size: 14px;
-            max-width: 50px;
-        }
-        .toggle-button {
-            background-color: lightgrey;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            position: absolute;
-            top: 40%;
-            left: 25px;
-            transform: translateX(-50%);
-            z-index: 9999;
-        }
-        .toggle-button:hover {
-            background-color: darkgrey;
-        }
-        .app-tab.open {
-            width: 850px;
-            height: 20%;
-            padding-left: 60px;
-        }
-        .app-tab.open .app-container {
-            visibility: visible;
-        }
-    </style>
+    <link rel="stylesheet" href="homeStyles.css">
 
     <?php
     // Database connection details
-    $host = '';
-    $user = '';
-    $pass = ''; 
-    $dbname = '';
+    $host = 'localhost';
+    $user = 'root';
+    $pass = 'mysql'; 
+    $dbname = 'dashboardDB';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
     
@@ -954,6 +283,8 @@ NOMINATIM API for sourcing the coordinates for the weather data
     } else {
         die("SQL Prepare Error: " . $conn->error);
     }
+    // Close the database connection
+    $conn->close();
     ?>
 
 
@@ -1171,7 +502,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         }
 
         async function searchLocation(city, stateCode, countryCode) {
-            const API_KEY = '';
+            const API_KEY = '42d428f253f687aaf4e3c9b7bbb38468';
             try {
                 //Fetch data from API
                 const response = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${city},${stateCode},${countryCode}&limit=1&appid=${API_KEY}`);
@@ -1190,6 +521,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
             } catch (error) { //Catch thrown error
                 //Log and display error
                 console.error("Error fetching data:", error);
+                displayError(error);
             }
         }
 
@@ -1219,7 +551,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         // Run GNEWS API
         async function fetchNews() {
-            const apiKey = '';
+            const apiKey = '79c06757c8c854e45b98939daff87ead';
             const url = `https://gnews.io/api/v4/top-headlines?category=general&lang=en&country=us&max=10&apikey=${apiKey}`;
 
             // Get GNEWS json data
@@ -1254,12 +586,27 @@ NOMINATIM API for sourcing the coordinates for the weather data
             }
         }
 
-        //Handles displaying options when clicking on profile
-        function profileEvents () {
-            document.getElementById("profileContainer").addEventListener("click", () => {
-                console.log(profileDisplayHandler);
-                profileDisplayHandler = !profileDisplayHandler;
-                displayProfileOptions(profileDisplayHandler);
+        document.addEventListener('DOMContentLoaded', function () {
+            const profileContainer = document.getElementById('profileContainer');
+            const profileNav = document.getElementById('profileNav');
+
+            // Ensure it starts hidden
+            profileNav.style.display = 'none';
+
+            profileContainer.addEventListener('click', function (e) {
+                e.stopPropagation(); // Prevent bubbling
+                if (profileNav.style.display === 'none') {
+                    profileNav.style.display = 'flex';
+                } else {
+                    profileNav.style.display = 'none';
+                }
+            });
+
+            // Hide if clicking outside
+            document.addEventListener('click', function (e) {
+                if (!profileContainer.contains(e.target) && !profileNav.contains(e.target)) {
+                    profileNav.style.display = 'none';
+                }
             });
 
             document.getElementById('profNavSettings').addEventListener('click', () => {
@@ -1267,50 +614,34 @@ NOMINATIM API for sourcing the coordinates for the weather data
             });
 
             document.getElementById('friendsListNavSettings').addEventListener('click', () => {
-                window.location.href = 'viewFriends.php';
-            });
-        }
-        function displayProfileOptions(display) {
-            const profileNav = document.getElementById("profileNav");
-            if (display) {
-                profileNav.style.display = 'grid';
-            } else {
-                profileNav.style.display = 'none';
-            }
-        }
-
-
-
-        //Script for calendar
+                    window.location.href = 'viewFriends.php';
+                });
+        });
 
         //Gets all events for this user
         async function getEvents() {
             try {
-                //Fetch data from API
                 const response = await fetch("EventCalendarPHP-main/fetch_events.php");
-                
-                //If response is not ok, throw error
-                if (!response.ok) {
-                    throw new Error(`HTTP Error\nStatus: ${response.status} - ${response.statusText}`);
+
+                const text = await response.text();
+
+                const data = JSON.parse(text);
+
+                if (!Array.isArray(data)) {
+                    throw new Error("Invalid response format: expected array");
                 }
 
-                //Put data in constant after parsing
-                var data = await response.json();
-
-                //Filters out all except today's events
                 const today = new Date().toLocaleDateString('en-CA');
-                data = data.filter(item => {
+                return data.filter(item => {
                     const eventDate = item.start.split(' ')[0];
-                    return eventDate == today;
+                    return eventDate === today;
                 });
-                //Return data
-                return(data);
-
-            } catch (error) { //Catch thrown error
-                //Log and display error
+            } catch (error) {
                 console.error("Error fetching data:", error);
+                return [];  // Fallback to empty array so rest of UI doesn't break
             }
         }
+
 
         //Displays events on mini-calendar
         function displayEvents(events) {
@@ -1357,6 +688,31 @@ NOMINATIM API for sourcing the coordinates for the weather data
             }
         }
 
+        function addFriend(username, id, isNew = true, editable = true) {
+            const container = document.getElementById('friendsAdded');
+
+            // Prevent duplicates
+            if (document.getElementById(id)) return;
+
+            const div = document.createElement('div');
+            div.id = id;
+            div.textContent = username;
+            div.style.padding = '5px';
+            div.style.margin = '5px';
+            div.style.borderRadius = '5px';
+            div.style.backgroundColor = 'lightblue';
+            div.style.display = 'inline-block';
+
+            if (!editable) {
+                div.style.opacity = '0.6';
+                div.style.pointerEvents = 'none';
+            } else if (isNew) {
+                div.classList.add('adding'); // Mark as newly added
+            }
+
+            container.appendChild(div);
+        }
+
         //Function for clicking an event to edit or for adding an event
         function eventClick(e, events) {
             const eventEdit = document.getElementById('eventEdit');
@@ -1377,12 +733,13 @@ NOMINATIM API for sourcing the coordinates for the weather data
             //If the edit section is hidden
             if (eventEdit.hidden == true) {
                 //Unhide it
-                document.getElementById('eventEdit').hidden = false;
+                const eventEditDiv = document.getElementById('eventEdit');
+                if (eventEditDiv) eventEditDiv.hidden = false;
 
                 //Add event listener for clicking outside element
                 setTimeout(() => {
                     document.addEventListener('click', closeEventEvent);
-                },400);
+                }, 400);
 
                 // Format the date using JavaScript's Date API
                 const formatDate = (date) => {
@@ -1394,63 +751,72 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 };
 
                 // Populate the form inputs with the event data
-                document.getElementById('createdBy').textContent = "Created by: " + event.created_by_username;
-                document.getElementById('eventId').value = event.id;
-                document.getElementById('eventTitle').value = event.title;
-                document.getElementById('startTime').value = formatDate(event.start);
-                document.getElementById('endTime').value = formatDate(event.end);
+                const createdBy = document.getElementById('createdBy');
+                if (createdBy) createdBy.textContent = "Created by: " + event.created_by_username;
 
-                //Adds friends to form if they exist
-                event.friends.forEach((friend) => {
-                    addFriend(friend.username, friend.id, false, event.user_created);
-                });
+                const eventId = document.getElementById('eventId');
+                if (eventId) eventId.value = event.id;
+
+                const eventTitle = document.getElementById('eventTitle');
+                if (eventTitle) eventTitle.value = event.title;
+
+                const startTime = document.getElementById('startTime');
+                if (startTime) startTime.value = formatDate(event.start);
+
+                const endTime = document.getElementById('endTime');
+                if (endTime) endTime.value = formatDate(event.end);
+
+                // Add friends
+                console.log("👥 Friends for event:", event.friends);
+                if (event.friends && event.friends.length > 0) {
+                    event.friends.forEach((friend) => {
+                        addFriend(friend.username, friend.id, false, event.user_created);
+                    });
+                }
 
                 // Enable or disable elements based on user_created status
                 const isDisabled = !event.user_created;
                 ['optFriend', 'eventTitle', 'startTime', 'endTime', 'deleteEvent', 'saveEvent'].forEach(id => {
-                    document.getElementById(id).disabled = isDisabled;
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = isDisabled;
                 });
             }
         }
 
-        //Resets form elements and hides edit section
         function closeEvent() {
-            document.getElementById('eventEdit').hidden = true;
+            const eventEditDiv = document.getElementById('eventEdit');
+            if (eventEditDiv) eventEditDiv.hidden = true;
+
             document.removeEventListener('click', closeEventEvent);
 
-            document.getElementById('friendsAdded').innerHTML = '';
-            document.getElementById('friendsResults').innerHTML = '';
-            document.getElementById('eventForm').reset();
+            const friendsAdded = document.getElementById('friendsAdded');
+            const friendsResults = document.getElementById('friendsResults');
+            const form = document.getElementById('eventForm');
+
+            if (friendsAdded) friendsAdded.innerHTML = '';
+            if (friendsResults) friendsResults.innerHTML = '';
+            if (form) form.reset();
         }
 
-        //Function for when the edit form is submitted
+
+        // Function for when the edit form is submitted
         async function submitEvent(e) {
             e.preventDefault();
 
-            // Create FormData from your form
             const formData = new FormData();
-
-            //Add data to formData
             formData.append('id', document.getElementById('eventId').value);
             formData.append('title', document.getElementById('eventTitle').value);
             formData.append('start', document.getElementById('startTime').value);
             formData.append('end', document.getElementById('endTime').value);
 
-            //Decide on url from if id exists
             const url = formData.get('id') ? 'EventCalendarPHP-main/edit_event.php' : 'EventCalendarPHP-main/add_event.php';
+            let eventId = formData.get('id');
 
-            // Send as regular POST data
-            await fetch(url, {
-                method: "POST",
-                body: formData
-            });
-
-
-            //This handles which hidden friends to delete and which to add. 
+            // ✅ FIRST: Collect friends to add/remove
             let friends = [];
             let friendsRemove = [];
             document.querySelectorAll('#friendsAdded div').forEach(div => {
-                if (div.hidden === true) { // Check if the div is hidden
+                if (div.hidden === true) {
                     friendsRemove.push(div.id);
                     div.remove();
                 } else if (div.classList.contains('adding')) {
@@ -1459,34 +825,49 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 }
             });
 
-            // Send added friends data using FormData
-            const addFriendsData = new FormData();
-            friends.forEach((friendId, index) => {
-                addFriendsData.append(`friends[${index}]`, friendId);
-            });
-
-            await fetch('EventCalendarPHP-main/add_event_friends.php', {
+            
+            const addResponse = await fetch(url, {
                 method: "POST",
-                body: addFriendsData  // No Content-Type header needed
+                body: formData
             });
 
-            // Send removed friends data using FormData
-            const removeFriendsData = new FormData();
-            friendsRemove.forEach((friendId, index) => {
-                removeFriendsData.append(`friends[${index}]`, friendId);
-            });
+            const result = await addResponse.json();
+            console.log("Add event result:", result);
 
-            await fetch('EventCalendarPHP-main/delete_event_friends.php', {
-                method: "POST",
-                body: removeFriendsData  // No Content-Type header needed
-            });
+            if (result.success) {
+                if (!eventId) {
+                    eventId = result.event_id; // Grab new event ID if this was a new event
+                }
 
-            //Reload events
-            await initiateEvents();
+                const addFriendsData = new FormData();
+                addFriendsData.append('currentEventId', eventId);
+                friends.forEach((friendId, index) => {
+                    addFriendsData.append(`friends[${index}]`, friendId);
+                });
 
-            //Close event edit
-            closeEvent();
+                await fetch('EventCalendarPHP-main/add_event_friends.php', {
+                    method: "POST",
+                    body: addFriendsData
+                });
+
+                const removeFriendsData = new FormData();
+                removeFriendsData.append('currentEventId', eventId);
+                friendsRemove.forEach((friendId, index) => {
+                    removeFriendsData.append(`friends[${index}]`, friendId);
+                });
+
+                await fetch('EventCalendarPHP-main/delete_event_friends.php', {
+                    method: "POST",
+                    body: removeFriendsData
+                });
+
+                await initiateEvents();
+                closeEvent();
+            } else {
+                alert("Event creation failed: " + result.error);
+            }
         }
+
 
         //Function for removing event
         async function deleteEvent(e) {
@@ -1541,7 +922,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
             //Create array of event object with appropriate info so we can reuse eventClick() 
             const event = [{
-                created_by: <?php echo $_SESSION['user_id'] ?>,
                 created_by_username: '<?php echo $_SESSION['username'] ?>',
                 end: midnightTomorrow,
                 friends: [],
@@ -1583,67 +963,226 @@ NOMINATIM API for sourcing the coordinates for the weather data
             date.innerHTML = today.getDate();
         }
 
-        //Handles event listeners and functions for mini-calendar
-        async function handleEvents() {
+        function sendRequest(receiverId) {
+            fetch('send_request.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'receiver_id=' + receiverId
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log("Raw response:", data);
+                alert(data);
+            })
+            .catch(error => console.error("Error sending request:", error));
+        }
+
+        document.addEventListener("DOMContentLoaded", async function () {
+            console.log("DOM fully loaded — running scripts");
+
             displayDate();
+            handleWeather();
+            fetchNews();
 
             await initiateEvents();
 
-            document.getElementById('closeEventEdit').addEventListener('click', closeEvent);
+            // Load friend requests
+            await loadFriendRequests();
+            setInterval(loadFriendRequests, 60000);
 
-            document.getElementById('eventForm').addEventListener('submit', await submitEvent);
+            const addEventBtn = document.getElementById("addEvent");
+            if (addEventBtn) {
+                addEventBtn.addEventListener("click", addEvent);
+            }
 
-            document.getElementById('deleteEvent').addEventListener('click', await deleteEvent);
+            const calendarBtn = document.getElementById("calendarLink");
+            if (calendarBtn) {
+                console.log("✅ Calendar link found:", calendarBtn);
+                calendarBtn.addEventListener("click", function () {
+                    console.log("📅 Redirecting to calendar...");
+                    window.location.href = "EventCalendarPHP-main/index.php";
+                });
+            } else {
+                console.error("Not found");
+            }
 
-            document.getElementById('addEvent').addEventListener('click', await addEvent);
+            const closeEditBtn = document.getElementById('closeEventEdit');
+            if (closeEditBtn) {
+                closeEditBtn.addEventListener('click', () => {
+                    closeEvent();
+                });
+            }
 
-            document.getElementById('calendarLink').addEventListener('click', (e) => {
-                window.location.href = 'EventCalendarPHP-main';
+            const deleteEventBtn = document.getElementById("deleteEvent");
+            if (deleteEventBtn) {
+                deleteEventBtn.addEventListener("click", deleteEvent);
+            }
+
+            const eventForm = document.getElementById('eventForm');
+            if (eventForm) {
+                eventForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    console.log("📨 Event form submit triggered");
+                    await submitEvent(e);
+                });
+            }
+
+            const friendSearchInput = document.getElementById("searchInput");
+            const resultsDiv = document.getElementById("searchResults");
+
+            if (friendSearchInput && resultsDiv) {
+                friendSearchInput.addEventListener("input", () => {
+                    const query = friendSearchInput.value;
+
+                    if (query.trim() === "") {
+                        resultsDiv.classList.remove('show');
+                        resultsDiv.innerHTML = "";
+                        return;
+                    }
+
+                    fetch(`home.php?action=search_users&query=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            console.log("Search results:", data);
+                            resultsDiv.innerHTML = "";
+
+                            if (!Array.isArray(data) || data.length === 0) {
+                                resultsDiv.innerHTML = "<div>No users found</div>";
+                            } else {
+                                data.forEach(user => {
+                                    const div = document.createElement('div');
+                                    div.style.display = 'flex';
+                                    div.style.justifyContent = 'space-between';
+                                    div.style.alignItems = 'center';
+                                    div.style.marginBottom = '8px';
+                                    div.style.gap = '10px';
+
+                                    const usernameSpan = document.createElement('span');
+                                    usernameSpan.textContent = user.username;
+                                    usernameSpan.style.fontWeight = 'bold';
+
+                                    const button = document.createElement('button');
+                                    button.textContent = 'Add Friend';
+                                    button.onclick = () => sendRequest(user.id);
+
+                                    div.appendChild(usernameSpan);
+                                    div.appendChild(button);
+                                    resultsDiv.appendChild(div);
+                                });
+                            }
+
+                            resultsDiv.classList.add('show');
+                        })
+                        .catch(err => {
+                            console.error("Friend search failed:", err);
+                            resultsDiv.innerHTML = "<div>Error loading results</div>";
+                            resultsDiv.classList.remove('show');
+                        });
+                });
+
+                document.addEventListener("click", function (event) {
+                    if (!resultsDiv.contains(event.target) && event.target !== friendSearchInput) {
+                        resultsDiv.classList.remove("show");
+                    }
+                });
+            }
+        });
+
+        async function loadFriendRequests() {
+            try {
+                const response = await fetch('view_requests.php');
+                const html = await response.text();
+                const container = document.getElementById('friendRequests');
+                if (container) container.innerHTML = html;
+            } catch (error) {
+                console.error('Error loading friend requests:', error);
+            }
+        }
+
+        function handleRequest(requestId, action) {
+            const formData = new URLSearchParams();
+            formData.append("request_id", requestId);
+            formData.append("action", action);
+
+            fetch("handle_request.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: formData.toString()
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("Friend action response:", data);
+                if (data.success) loadFriendRequests();
+            })
+            .catch(err => {
+                console.error("Error handling friend request:", err);
             });
         }
-        
+
+
+
+        function profileEvents () {
+            document.getElementById("profileContainer").addEventListener("click", () => {
+                console.log(profileDisplayHandler);
+                profileDisplayHandler = !profileDisplayHandler;
+                displayProfileOptions(profileDisplayHandler);
+            });
+
+            document.getElementById('profNavSettings').addEventListener('click', () => {
+                window.location.href = 'user_acct_settings.php';
+            });
+
+            document.getElementById('friendsListNavSettings').addEventListener('click', () => {
+                window.location.href = 'viewFriends.php';
+            });
+        }
+
+        function displayProfileOptions(display) {
+            const profileNav = document.getElementById("profileNav");
+            if (display) {
+                profileNav.style.display = 'grid';
+            } else {
+                profileNav.style.display = 'none';
+            }
+        }
     </script>
-
-
 </head>
-    
 
 <body>
-    <header>
-        <h1>Home Page</h1>
-        <div id="profileContainer">
-            <img src="<?php echo $thisUser['profile_picture']; ?>" width="42px" height="42px" alt="profile picture" id="profilePic">
-        </div>
-        
-    </header>
-    <nav id="profileNav">
-        <div id="profNavUsername"><?php echo $_SESSION['username']; ?></div>
-        <div class="profNav" id="profNavSettings">Account Settings</div>
-        <div class="profNav" id="friendsListNavSettings">View Friends</div>
-    </nav>
+    <header id="mainHeader">
+        <div class="header-title">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></div>
 
-    <!-- Messaging Icon -->
-    <div id="messageCenter">
-        <img src="https://www.svgrepo.com/show/304507/messages.svg" id="chatApp" alt="Chatting Icon">
-        
-        <script>
-            // Change logo if new message received otherwise neutral
-            let messageLogoChange = false;
-            function refreshMessageIcon() {
-                document.getElementById('chatApp').src = messageLogoChange ? "https://www.svgrepo.com/show/304513/messages-alert.svg" : "https://www.svgrepo.com/show/304507/messages.svg";
-            }
-            
-        </script>
-    </div>
+        <div class="header-actions">
+            <!-- Messaging Icon -->
+            <div id="messageCenter">
+                <img src="https://www.svgrepo.com/show/304507/messages.svg" id="chatApp" alt="Chatting Icon">
+                
+                <script>
+                    // Change logo if new message received otherwise neutral
+                    let messageLogoChange = false;
+                    function refreshMessageIcon() {
+                        document.getElementById('chatApp').src = messageLogoChange ? "https://www.svgrepo.com/show/304513/messages-alert.svg" : "https://www.svgrepo.com/show/304507/messages.svg";
+                    }
+                    
+                </script>
+            </div>
+
+            <div id="profileContainer" title="Profile Options">
+                <img src="<?php echo htmlspecialchars($thisUser['profile_picture']) . '?' . time(); ?>" alt="Profile Picture" id="profilePic">
+                <nav id="profileNav">
+                    <div id="profNavUsername"><?php echo $_SESSION['username']; ?></div>
+                    <div class="profNav" id="profNavSettings">Account Settings</div>
+                    <div class="profNav" id="friendsListNavSettings">View Friends</div>
+                </nav>
+            </div>
+        </div>
+    </header>
 
     <!-- Main Chat Window -->
     <div id="chatWindowContainer">
         <div id="searchContainer">
             <input type="text" id="searchUser" placeholder="Search User..." oninput="searchUsers()">
-            <ul id="userList">
-                <!-- Username new message notifcations appear here-->
-            </ul>
-
+            <ul id="userList"></ul>
         </div>
 
         <div id="chatListContainer">
@@ -1653,40 +1192,30 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
     <!-- Individual Chat Window -->
     <div id="individualChatWindow">
-        <!-- Box header -->
         <div id="chatHeader">
             <p id="chatUsername"></p>
             <p id="closeChat">✖</p>
         </div>
-
-        <!-- All of your messages to the username -->
         <div id="messageArea"></div>
+            <div id="newMessageIndicator" onclick="scrollToBottom()">New Messages</div>
 
-        <!-- Message Indicator when clicked brings to bottom of messages -->
-        <div id="newMessageIndicator" onclick="scrollToBottom()">New Messages</div>
-        
-        <!-- Space to type out your message -->
         <input type="text" id="messageInput" placeholder="Type a message...">
-
-        <!-- Send button -->
         <button id="sendMessage">Send</button>
     </div>
     
     <!-- Add Friends div-->
     <div id="friendFinder">
         <div id="friendsScrollbar">
-
-            <!-- Friend Search bar -->
             <h3>Search for friends</h3>
             <input type="text" id="searchInput" placeholder="Add Friends...">
-            <div id="searchResults" class="dropdown">
-                <!-- Displays query results -->
-            </div>
 
+            <div id="searchResults" class="dropdown"></div>
             <h3>Friend Requests</h3>
-            <div id="friendRequests">
-                <!-- Displays any incoming friend requests -->
-            </div>
+            <div id="friendRequests"></div>
+            <!--
+            <h3>Your Friends</h3>
+            <div id="friendsList"></div>
+            -->
         </div>
     </div>
 
@@ -1754,28 +1283,42 @@ NOMINATIM API for sourcing the coordinates for the weather data
                         <input type="text" id="endTime" required>
                     </div>
                     <div>
-                        <select id="optFriend" name="optFriend">
-                            <option disabled selected value="">Add Friends</option>
-                            <?php
-                                //Provides all friends as a select option
+                    <select id="optFriend" name="optFriend">
+                        <option disabled selected value="">Add Friends</option>
+                        <?php
+                            // Ensure the DB connection is available
+                            $conn = new mysqli('localhost', 'root', 'mysql', 'dashboardDB');
+                            if ($conn->connect_error) {
+                                echo '<option disabled>Error connecting to DB</option>';
+                            } else {
                                 $user_id = $_SESSION['user_id'];
 
                                 $stmt = $conn->prepare("
-                                    SELECT users.username, users.id FROM friends
+                                    SELECT users.username, users.id 
+                                    FROM friends
                                     JOIN users ON (friends.user1_id = users.id OR friends.user2_id = users.id) 
                                     WHERE (friends.user1_id = ? OR friends.user2_id = ?) AND users.id != ?
                                 ");
-                                $stmt->bind_param("iii", $user_id, $user_id, $user_id);
-                                $stmt->execute();
-                                $result = $stmt->get_result();
-                                // Display each user
-                                print_r($result);
-                                while ($row = $result->fetch_assoc()) {
-                                    
-                                    echo '<option value="'.$row['id'].'">'.$row['username'].'</option>';
+
+                                if ($stmt) {
+                                    $stmt->bind_param("iii", $user_id, $user_id, $user_id);
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
+
+                                    while ($row = $result->fetch_assoc()) {
+                                        echo '<option value="' . htmlspecialchars($row['id']) . '">' . htmlspecialchars($row['username']) . '</option>';
+                                    }
+
+                                    $stmt->close();
+                                } else {
+                                    echo '<option disabled>Query error: ' . $conn->error . '</option>';
                                 }
-                            ?>
-                        </select>
+
+                                $conn->close();
+                            }
+                        ?>
+                    </select>
+
                     </div>
                     <div id="friends">
                         <div id="friendsResults"></div>
@@ -1789,20 +1332,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
         </div>
     </div>
 
-    <script>
-        // Fetch weather data on load
-        handleWeather();
-
-        // Get news when loaded
-        fetchNews(); 
-
-        // Refresh News every hour
-        setInterval(fetchNews, 3600000);
-
-        profileEvents();
-
-        handleEvents();
-    </script>
 
     <!-- Messaging window Script -->
     <script>
@@ -1817,13 +1346,13 @@ NOMINATIM API for sourcing the coordinates for the weather data
         
         
         
-        // Chat search/messages appear opens and closes
+        // Chat search bar opens and closes
         function toggleChatSearch() {
             let chatSearch = document.getElementById('chatWindowContainer');
             chatSearch.classList.toggle("open");
         }
 
-        // Event listener to toggle open or close chat search bar based on chat icon click (message bubble)
+        // Event listener to toggle open or close chat search bar based on chat icon click
         document.addEventListener("DOMContentLoaded", function() {
             document.getElementById("messageCenter").addEventListener("click", toggleChatSearch);
         });
@@ -1922,46 +1451,60 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         
         
-        // Loading unread messages
         function loadUnreadMessageUsers() {
             fetch("home.php?action=get_unread_users")
                 .then(response => response.json())
                 .then(users => {
-                    // Create a list of users that you have unread messages from
-                    let userList = document.getElementById("userList");
+                    const userList = document.getElementById("userList");
+                    const chatApp = document.getElementById("chatApp");
+
+                    // Reset UI
                     userList.innerHTML = "";
+                    let badge = document.getElementById("chatNotificationBadge");
+
+                    if (users.length > 0) {
+                        // ✅ Show notification icon
+                        if (!badge) {
+                            badge = document.createElement("span");
+                            badge.id = "chatNotificationBadge";
+                            badge.classList.add("notification-badge");
+                            chatApp.appendChild(badge);
+                        }
+                        badge.style.display = "block";
+                        messageLogoChange = true;
+                        refreshMessageIcon();
+                    } else {
+                        // ❌ Hide if no unread messages
+                        if (badge) badge.style.display = "none";
+                        messageLogoChange = false;
+                        refreshMessageIcon();
+                    }
+
+                    // Render users in dropdown
                     fetch("get_friends.php")
                         .then(response => response.json())
                         .then(friends => {
-                            // For each user
                             users.forEach(user => {
-                                // Create a new list element in the unordered list
                                 let userItem = document.createElement("li");
                                 userItem.classList.add("userItem");
                                 userItem.dataset.userId = user.id;
 
-                                // Get the username and show a New Message banner
                                 if (friends.includes(user.id)) {
                                     userItem.innerHTML = `${user.username} <img src="uploads/friend.svg" alt="friends" id="friendsIndicator"><span class="new-message">New Message</span>`;
                                 } else {
                                     userItem.innerHTML = `${user.username} <span class="new-message">New Message</span>`;
                                 }
-                                // Change message bubble
-                                messageLogoChange = true;
-                                refreshMessageIcon();
-                                // When clicking the list element be brought to the individual chat window with the user
+
                                 userItem.addEventListener("click", () => openChat(user.id, user.username));
                                 userList.appendChild(userItem);
                             });
-                        })
-                        .catch(error => {
-                            console.error("Error getting friends list:", error)
                         });
-                    })
+                })
                 .catch(error => {
-                    console.error("Error loading unread users:", error)
+                    console.error("Error loading unread users:", error);
                 });
         }
+
 
 
 
@@ -2057,10 +1600,9 @@ NOMINATIM API for sourcing the coordinates for the weather data
             // Get your userId to mark as read
             activeChatUser = userId;
             document.getElementById('individualChatWindow').style.display = 'block';
-            // Load the messages from the user while scrolling to bottom
+            // Load the messages from the user
             loadMessages(userId);
             scrollToBottom();
-            // Change messaging icon
             messageLogoChange = false;
             refreshMessageIcon();
             // Mark the message as read and refresh your unread message users list
@@ -2075,22 +1617,26 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         
         
-        // Event listener to send message when clicking the send button
         document.getElementById('sendMessage').addEventListener('click', function () {
-            // Get the message you are sending
             let message = document.getElementById('messageInput').value;
-            if (message.trim() === "" || !activeChatUser) {
-                return;
-            }
-            // PHP request to send the message to the receiver from the sender
+            if (message.trim() === "" || !activeChatUser) return;
+
             fetch('home.php?action=send_message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=send_message&message=${encodeURIComponent(message)}&receiver_id=${encodeURIComponent(activeChatUser)}&sender_id=${encodeURIComponent(loggedInUserId)}`
             })
-            .then(response => response.json())
-            .then(data => {
-                // Message sent successfully clear input else error
+            .then(response => response.text())
+            .then(text => {
+                console.log("📨 Raw response from server:", text); // ⬅️ this will help us debug
+                let data;
+                try {
+                    data = JSON.parse(text); // try to parse JSON
+                } catch (err) {
+                    alert("JSON parse error: " + err.message);
+                    return;
+                }
+
                 if (data.success) {
                     loadMessages(activeChatUser);
                     document.getElementById('messageInput').value = '';
@@ -2103,10 +1649,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
             });
         });
 
-
-
-
-        
         
         // Load messages from user
         function loadMessages(userId) {
@@ -2116,7 +1658,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 .then(messages => {
                     // If json response messages not in array form
                     if (!Array.isArray(messages)) {
-                        console.error("Expected 'messages' to be an array, but got:", messages);
+                        console.warn("Expected 'messages' to be an array, but got:", messages);
                         return;
                     }
                     // Load messages in messageArea
@@ -2184,6 +1726,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
             if (indicator) {
                 indicator.style.display = 'block';
             }
+
         }
 
         // Hide new message indicator
@@ -2227,7 +1770,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: `action=mark_messages_seen&sender_id=${activeChatUser}`
             }).then(() => loadUnreadMessageUsers());
-            // Change message logo since you have seen new message and hide indicator
             messageLogoChange = false;
             refreshMessageIcon();
             hideNewMessageIndicator();
@@ -2252,7 +1794,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         }, 5000);
 
         // Auto-refresh unread users list every 10 seconds
-        setInterval(loadUnreadMessageUsers, 10000);
+        setInterval(loadUnreadMessageUsers, 3000);
 
         // Load messages every 2 seconds
         setInterval(() => {
@@ -2262,120 +1804,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         }, 2000);
         
     </script>
-    
-    <!-- Friending JS -->
-    <script>
-        // Reuse search_users chatting feature to get username dropdown
-        document.getElementById('searchInput').addEventListener('input', function() {
-        // Add input to the query, using query search db for compatible names
-        let query = this.value;
-        fetch(`home.php?action=search_users&query=${query}`)
-            .then(response => response.json())
-            .then(data => {
-                // Display json results as usernames, start as empty
-                let resultsDiv = document.getElementById('searchResults');
-                resultsDiv.innerHTML = "";
-                // For each user
-                data.forEach(user => {
-                    // Add each user to a div where you have the option to send them a friend request
-                    let div = document.createElement('div');
-                    div.innerHTML = user.username + 
-                        ` <button id="friendRequestButton" onclick="sendRequest(${user.id})">Add Friend</button>`;
-                    resultsDiv.appendChild(div);
-                });
-            });
-        });
-        
-        // To send a friend request when button is clicked
-        function sendRequest(receiverId) {
-            // Creates a pending request to receiver
-        fetch('send_request.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'receiver_id=' + receiverId
-        })
-            // Display results of the friend request
-        .then(response => response.text())
-        .then(alert);
-        }
 
-        // Change the friend request from pending to accepted or declined
-        function handleRequest(requestId, action) {
-            // Change request status from pending to accepted or declined
-            fetch('handle_request.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `request_id=${requestId}&action=${action}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Display updated information with your choice
-                if (data.success) {
-                    loadFriendRequests();
-                    loadFriendsList();
-                } else {
-                    alert("Error handling request");
-                }
-            });
-        }
-
-        
-        // Get open friend requests 
-        function loadFriendRequests() {
-            // Get open friend requests to you
-            fetch('view_requests.php')
-                .then(response => response.json())
-                .then(data => {
-                    let requestsDiv = document.getElementById('friendRequests');
-                    requestsDiv.innerHTML = "";
-                    // If no incoming requests
-                    if (data.length === 0) {
-                        requestsDiv.innerHTML = "<p>No friend requests</p>";
-                        return;
-                    }
-                    // If incoming friend requests
-                    data.forEach(request => {
-                        // In new div display they sent a request and give option to accept or decline invitation
-                        let div = document.createElement('div');
-                        div.innerHTML = `${request.username} sent you a friend request. 
-                            <button id="acceptButton" onclick="handleRequest(${request.id}, 'accept')">Accept</button>
-                            <button id="declineButton" onclick="handleRequest(${request.id}, 'decline')">Decline</button>`;
-                        requestsDiv.appendChild(div);
-                    });
-                });
-        }
-
-        
-
-        // Event listener to run on selected usernames from the dropdown
-        document.addEventListener("DOMContentLoaded", function() {
-            let searchInput = document.getElementById("searchInput");
-            // When displaying names based on user input
-            document.addEventListener("click", function(event) {
-                let searchResults = document.getElementById("searchResults");
-                // To hide the dropdown
-                if (searchResults) {
-                    if (!searchResults.contains(event.target) && event.target !== searchInput) {
-                        searchResults.style.display = "none";
-                    }
-                }
-            });
-            // Show the search results when typing
-            searchInput.addEventListener("input", function() {
-                let searchResults = document.getElementById("searchResults");
-                // Show each result in the dropdown
-                if (searchResults) {
-                    searchResults.style.display = "block";
-                }
-            });
-        });
-
-        // Initial Run
-        loadFriendRequests();
-        // Run requests every 60 seconds
-        setInterval(loadFriendRequests, 60000);
-
-    </script>
 
     <!-- Apps -->
     <div id="app-tab" class="app-tab">
@@ -2449,10 +1878,9 @@ NOMINATIM API for sourcing the coordinates for the weather data
         toggleButton.addEventListener('click', function() {
             appTab.classList.toggle('open');
         });
-
     </script>
 
-
+    <script src="./EventCalendarPHP-main/assets/js/friendScript.js"></script>
+    
 </body>
-<script src="./EventCalendarPHP-main/assets/js/friendScript.js"></script>
 </html>

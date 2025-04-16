@@ -10,22 +10,23 @@ $(document).ready(function() {
         selectable: true, // Allow dates to be selectable
         selectHelper: true, // Show a placeholder when selecting
         select: function(start, end) {
-            // Clear the form inputs
+            // Clear all form fields
+            $('#eventForm')[0].reset();
             $('#eventId').val('');
             $('#eventTitle').val('');
             $('#startTime').val(moment(start).format("YYYY-MM-DD HH:mm:ss"));
             $('#endTime').val(moment(end).format("YYYY-MM-DD HH:mm:ss"));
-
+            $('#createdBy').text('');
+        
+            // Clear any friend divs
             $('#friendsAdded').empty();
             $('#friendsResults').empty();
-            
-            $('#optFriend').prop('disabled', false);
-            $('#eventTitle').prop('disabled', false);
-            $('#startTime').prop('disabled', false);
-            $('#endTime').prop('disabled', false);
-            $('#deleteEvent').prop('disabled', false);
-            $('#saveEvent').prop('disabled', false);
-            // Show the modal for adding a new event
+        
+            // Enable all input fields and buttons
+            const fieldsToEnable = ['#optFriend', '#eventTitle', '#startTime', '#endTime', '#deleteEvent', '#saveEvent'];
+            fieldsToEnable.forEach(id => $(id).prop('disabled', false));
+        
+            // Show the modal
             $('#eventModal').modal('show');
         },
         editable: true, // Allow events to be editable

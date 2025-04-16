@@ -1,9 +1,9 @@
 <?php
 // Database connection details
-$host = '';
-$user = '';
-$pass = ''; 
-$dbname = '';
+$host = 'localhost';
+$user = 'root';
+$pass = 'mysql'; 
+$dbname = 'dashboardDB';
 
 try {
     // Create a new PDO instance and set the error mode to exception

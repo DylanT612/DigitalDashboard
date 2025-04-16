@@ -1,0 +1,11 @@
+Array
+(
+    [request_id] => 4
+    [request] => Array
+        (
+            [sender_id] => 4
+            [receiver_id] => 5
+        )
+
+    [session_user_id] => 5
+)
