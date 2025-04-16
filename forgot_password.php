@@ -31,10 +31,10 @@ Revisions:
 
 
         //Database connection details
-        $host = 'localhost';
-        $user = 'root';
-        $pass = 'mysql'; 
-        $dbname = 'dashboardDB';
+        $host = '';
+        $user = '';
+        $pass = ''; 
+        $dbname = '';
 
         //Establish connection
         $conn = new mysqli($host, $user, $pass, $dbname);
