@@ -9,10 +9,10 @@ if (!isset($_POST['action']) || !isset($_POST['request_id'])) {
 }
 
 // Database connection details
-$host = 'localhost';
-$user = 'root';
-$pass = 'mysql'; 
-$dbname = 'dashboardDB';
+$host = '';
+$user = '';
+$pass = ''; 
+$dbname = '';
 
 // Database connection
 $conn = new mysqli($host, $user, $pass, $dbname);
