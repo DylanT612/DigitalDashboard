@@ -1,54 +1,65 @@
 html, body {
-    height: fit-content;
     margin: 0;
     padding: 0;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
 }
+
+body {
+    background: url('/Images/digital.jpg') no-repeat center center fixed;
+    background-size: cover;
+}
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
-/* Background container */
-.background {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    background-size: 100%;
-    filter: blur(5px);
-    z-index: -1; /* Makes background lower stack order than content */
-}
+
 .stretch {
     width: 100%;
     height: 100%;
 }
+
 main {
-    filter: none;
+    background-color: rgba(50, 50, 50, 0.8); 
     color: white;
-    background-color: rgb(93, 93, 104);
-    width: 75%;
-    margin-left: auto;
-    margin-right: auto;
-    height: 100%;
+    width: 90%;
+    max-width: 1200px;
+    height: 90vh;
+    margin: 5vh auto;
+    padding: 20px;
+    overflow-y: auto;
+    border-radius: 15px;
+    box-shadow: 0px 0px 20px rgba(0,0,0,0.4);
 }
+
 header p, header h1 {
     margin-bottom: 0rem;
 }
+
 .container .mt-5 {
     margin-top: 0;
 }
+
 .fc-view-container {
     background-color: rgb(67, 67, 75);
 }
+
 .modal-body {
     max-height: 500px;
     overflow-y: auto;
 }
+
 .fc-unthemed td.fc-today {
     background-color: rgb(101, 101, 136);
 }
+
 #eventModal {
     color: black;
 }
+
 header {
     display: grid;
     grid-template-columns: 33.3% 33.3% 33.3%;
@@ -59,35 +70,43 @@ header {
     padding: 10px;
     color: white;
 }
+
 h1 {
     font-size: 23pt;
     font-weight: bold;
     grid-area: pageName;
     text-align: center;
 }
+
 header p {
     grid-area: nav;
 }
+
 #dashboardLink{
     font-size: 15pt;
 }
+
 #dashboardLink:hover {
     cursor: pointer;
     color: grey;
 }
+
 .bootstrap-datetimepicker-widget .dropdown-menu .usertwentyfour .bottom{
     color: black;
 }
+
 .modal-header {
     border-bottom: none;
     padding-bottom: 5px;
 }
+
 #createdBy {
     display: block;
     margin-bottom: 20px;
     padding-left: 30px;
     border-bottom: 1px solid darkgray;
 }
+
 #friendsAdded {
     min-width: 80%;
     min-height: 40px;

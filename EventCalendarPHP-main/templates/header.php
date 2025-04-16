@@ -11,7 +11,4 @@
     
 </head>
 <body>
-<div class="background">
-    <img src="../Images/Geo.jpg" class="stretch" alt="" />
-</div>
 <main>
