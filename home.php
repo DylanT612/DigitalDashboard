@@ -7,10 +7,10 @@
     }
 
     // Database connection details
-    $host = 'localhost';
-    $user = 'root';
-    $pass = 'mysql'; 
-    $dbname = 'dashboardDB';
+    $host = '';
+    $user = '';
+    $pass = ''; 
+    $dbname = '';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 
@@ -502,7 +502,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         }
 
         async function searchLocation(city, stateCode, countryCode) {
-            const API_KEY = '42d428f253f687aaf4e3c9b7bbb38468';
+            const API_KEY = '';
             try {
                 //Fetch data from API
                 const response = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${city},${stateCode},${countryCode}&limit=1&appid=${API_KEY}`);
@@ -551,7 +551,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         // Run GNEWS API
         async function fetchNews() {
-            const apiKey = '79c06757c8c854e45b98939daff87ead';
+            const apiKey = '';
             const url = `https://gnews.io/api/v4/top-headlines?category=general&lang=en&country=us&max=10&apikey=${apiKey}`;
 
             // Get GNEWS json data
