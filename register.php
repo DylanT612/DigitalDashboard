@@ -16,7 +16,7 @@ Revisions:
 // Database connection details
 $host = '';
 $user = '';
-$pass = '';
+$pass = ''; 
 $dbname = '';
 
 // Create connection
@@ -97,129 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Create Account</title>
-        <style>
-            html, body {
-                margin: 0;
-                padding: 0;
-                overscroll-behavior: none;
-            }
-
-            html {
-                background: url('./Images/digital.jpg') no-repeat center center fixed;
-                background-size: cover;
-                position: relative;
-            }
-
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                text-align: center;
-                color: #EFEFEF;
-            }
-
-            .main-container {
-                background-color: rgba(50, 50, 50, 0.8);
-                padding: 20px;
-                border-radius: 20px;
-                width: 700px;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-                margin: 50px auto;
-            }
-
-            input, select {
-                width: 97%;
-                padding: 10px;
-                margin-bottom: 15px;
-            }
-
-            button {
-                background-color: #4CAF50; /* Green button */
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s;
-                width: 100%; /* Full width button */
-            }
-
-            button:hover {
-                background-color: #45a049;
-            }
-
-            /* Style for all buttons and links styled as buttons */
-            .link-button {
-                display: inline-block;
-                background-color: rgba(50, 50, 50, 0.8); /* Same as the login-container for perfect blending */
-                color: white;
-                padding: 10px 15px;
-                margin: 5px 0;
-                border-radius: 5px;
-                text-decoration: none; /* Removes underline for anchor tags */
-                border: none; /* Ensures no visible borders */
-                cursor: pointer; /* Cursor indicates clickability on hover */
-                text-align: center; /* Centers text within buttons */
-                width: 100%; /* Full width to match container */
-                box-sizing: border-box; /* Includes padding in width calculation */
-                transition: all 0.3s ease; /* Smooth transition for color and transform */
-            }
-
-            .link-button:hover {
-                background-color: rgba(80, 80, 80, 0.9); /* Subtly lighter on hover to indicate interactivity */
-                transform: translateY(-2px); /* Subtle lift effect on hover */
-                box-shadow: 0 2px 5px rgba(0,0,0,0.3); /* Adds shadow on hover for depth */
-            }
-
-        </style>
+        <link rel="stylesheet" href="registerStyles.css">
     </head>
-    <script type="module">
-        import { eventOptAmerica } from './src/stateDisplayHandler.js';
-
-        const form = document.querySelector('form');
-        const passwordInput = document.getElementById('password');
-        const confirmPasswordInput = document.getElementById('confirm-password');
-
-        // Function to display or hide error messages
-        function handleError(input, message) {
-            let errorElement = input.nextElementSibling;
-            if (!errorElement || !errorElement.classList.contains('error')) {
-                errorElement = document.createElement('span');
-                errorElement.classList.add('error');
-                input.parentNode.insertBefore(errorElement, input.nextSibling);
-            }
-            errorElement.textContent = message || '';
-        }
-
-        function submitEvent(event) {
-            let valid = true;
-            const password = passwordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-
-            // Assure that our password is intially 8 characters long
-            if (password.length < 8) {
-                handleError(passwordInput, 'Password must be at least 8 characters long.');
-                valid = false;
-            } else {
-                handleError(passwordInput);
-            }
-
-            // Confirm that passwords do match
-            if (confirmPassword !== password) {
-                handleError(confirmPasswordInput, 'Passwords do not match.');
-                valid = false;
-            } else {
-                handleError(confirmPasswordInput);
-            }
-
-            // If we error out, ensure the form cannot be submitted untils changes are made
-            if (!valid) event.preventDefault();
-        }
-
-        //Add event listener to the country select element to see if USA was selected
-        optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
-    </script>
 
     <body>
         <div class="main-container">
@@ -252,27 +131,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="txtCity">City</label>
                 <input type="text" id="txtCity" name="city" placeholder="Enter the city you reside in">
 
-                <!-- State select -->
-                <select name="state" id="optState" hidden>
-                    <!-- Dropdown menu of all states -->
-                    <option disabled selected value>Choose State</option>
-                    <?php 
-                        $sql = "SELECT * FROM states";
-                        if($stmt = $conn->prepare($sql)) {
-                            $stmt->execute();
-                            if($stmt->errno) {
-                                print_r("Could not execute prepared statement");
-                            }
-                            $result = $stmt->get_result();
-                            $stmt->free_result();
-                            $stmt->close();
-                        }
-                        while($row = $result->fetch_assoc()) {    
-                            echo "<option value='" . $row['stateCode'] . "'>" . $row['state'] . "</option>\n";
-                        }
-                    ?>
-                </select>
-
                 <!-- Country select -->
                 <label for="country">Country</label>
                 <select name="country" id="optCountry" value="">
@@ -291,6 +149,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         while($row = $result->fetch_assoc()) {    
                             echo "<option value='" . $row['countryCode'] . "'>" . $row['country'] . "</option>\n";
+                        }
+                    ?>
+                </select>
+
+                <!-- State select -->
+                <select name="state" id="optState" hidden>
+                    <!-- Dropdown menu of all states -->
+                    <option disabled selected value>Choose State</option>
+                    <?php 
+                        $sql = "SELECT * FROM states";
+                        if($stmt = $conn->prepare($sql)) {
+                            $stmt->execute();
+                            if($stmt->errno) {
+                                print_r("Could not execute prepared statement");
+                            }
+                            $result = $stmt->get_result();
+                            $stmt->free_result();
+                            $stmt->close();
+                        }
+                        while($row = $result->fetch_assoc()) {    
+                            echo "<option value='" . $row['stateCode'] . "'>" . $row['state'] . "</option>\n";
                         }
                     ?>
                 </select>
@@ -348,12 +227,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!valid) event.preventDefault();
             }
 
+            form.addEventListener('submit', submitEvent);
             //Add event listener to the country select element to see if USA was selected
             optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
-        </script>
-
-        <script>
-            form.addEventListener('submit', submitEvent);
         </script>
 
         </main>
