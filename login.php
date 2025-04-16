@@ -22,10 +22,10 @@ $_SESSION['reset'] = 0;
 
 // Database connection details
 
-$host = 'localhost';
-$user = 'root';
-$pass = 'mysql'; 
-$dbname = 'dashboardDB';
+$host = '';
+$user = '';
+$pass = ''; 
+$dbname = '';
 
 $conn = new mysqli($host, $user, $pass, $dbname);
 
