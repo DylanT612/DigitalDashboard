@@ -21,10 +21,10 @@ if (!isset($_SESSION['username']) || $_SESSION['reset'] == 0) {
 }
 
 //Database connection details
-$host = 'localhost';
-$user = 'root';
-$pass = 'mysql'; 
-$dbname = 'dashboardDB';
+$host = '';
+$user = '';
+$pass = ''; 
+$dbname = '';
 
 //Connect
 $conn = new mysqli($host, $user, $pass, $dbname);
