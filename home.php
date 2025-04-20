@@ -903,9 +903,10 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
             // Get day name (e.g., "Monday")
             const dayName = today.toLocaleDateString('en-US', { weekday: 'long' }); 
+            const monthName = today.toLocaleDateString('en-US', { month: 'long' }); 
 
             DOW.innerHTML = `${dayName}, `;
-            date.innerHTML = today.getDate();
+            date.innerHTML = `${monthName} ${today.getDate()}`;
         }
 
         //Handles event listeners and functions for mini-calendar
