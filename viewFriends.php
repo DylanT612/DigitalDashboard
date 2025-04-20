@@ -19,18 +19,16 @@ Revisions:
     
     <body>
         <div class="main-container">
-            <!-- Return to home page -->
             <span id="dashboardLink">🡰 Dashboard</span>
-
-            <!-- View your added friends -->
-            <h3>Your Friends</h3>
-            <div id="friendsList"></div>
+            <div class="credentials-container">
+                <h1>Your Friends</h1>
+                <div id="friendsList"></div>
+            </div>
 
             
         <script>
-            // Listen for click to return to dashboard
             document.getElementById('dashboardLink').addEventListener('click', function() {
-                window.location.href = 'home.php';
+                window.location.href = 'home.php';  // Adjust URL as needed
             });
         </script>
         <script>
@@ -56,7 +54,6 @@ Revisions:
                         });
                     });
             }
-            // Run friends list
             loadFriendsList();
         </script>
             
