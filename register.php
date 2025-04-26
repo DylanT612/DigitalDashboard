@@ -27,6 +27,9 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+$errorMessage = "";
+$messageType = "error";
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sanitize form input
     $first_name = $conn->real_escape_string($_POST['first']);
@@ -51,10 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (move_uploaded_file($_FILES["picture"]["tmp_name"], $target_file)) {
                 $profile_picture = $target_file;
             } else {
-                echo "Sorry, there was an error uploading your file.";
+                $errorMessage = "Sorry, error uploading file";
+                $messageType = "error";
             }
         } else {
-            echo "Only JPG, PNG, and JPEG files are allowed.";
+            $errorMessage = "Only JPG, PNG, and JPEG files are allowed.";
+            $messageType = "error";
         }
     }
 
@@ -65,28 +70,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Bind the parameters
         $stmt->bind_param("ssssssssss", $first_name, $last_name, $email, $username, $password, $birth_date, $city, $state, $country, $profile_picture); 
         if($stmt->errno) {
-            print_r("stmt prepare( ) had error."); 
+            $errorMessage = "stmt prepare( ) had error."; 
+            $messageType = "error";
         }
         // Execute the query
         $stmt->execute();
         if($stmt->errno) {
-            print_r("Could not execute prepared statement");
+            $errorMessage = "Could not execute prepared statement";
+            $messageType = "error";
             $result = false;
         }
         else {
             $result = true;
         }
 
-        // Free results
-        $stmt->free_result( );
-
         // Close the statement
         $stmt->close( );
     }
 
     if ($result) {
-        header("Location: login.php"); // Redirect us back to our index (home page) upon successful creation
-        exit();
+        $errorMessage = "Account created! Redirecting back to the login page.";
+        $messageType = "success";
+        $redirect = "true";
+        $redirectPage = "login.php";
     } 
 }
 ?>
@@ -97,11 +103,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Create Account</title>
-        <link rel="stylesheet" href="registerStyles.css">
+        <link rel="stylesheet" href="Styles/registerStyles.css">
+        <link rel="preload" as="image" href="Images/digital.jpg">
+        <style>
+            body {
+                background: url('Images/digital.jpg') no-repeat center center fixed;
+                background-size: cover;
+                position: relative;
+            }
+        </style>
     </head>
 
     <body>
         <div class="main-container">
+            <div class="message-container <?php echo isset($messageType) ? $messageType : ''; ?>" style="<?php echo !empty($errorMessage) ? 'display:block;' : 'display:none;'; ?>">
+                <?php echo !empty($errorMessage) ? $errorMessage : ''; ?>
+            </div>
+            
             <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="POST" enctype="multipart/form-data">
 
                 <h1>Create Account</h1>
@@ -141,7 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if($stmt = $conn->prepare($sql)) {
                             $stmt->execute();
                             if($stmt->errno) {
-                                print_r("Could not execute prepared statement");
+                                $errorMessage = "Could not execute prepared statement";
+                                $messageType = "error";
                             }
                             $result = $stmt->get_result();
                             $stmt->free_result();
@@ -154,6 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </select>
 
                 <!-- State select -->
+                <label for="state">State</label>
                 <select name="state" id="optState" hidden>
                     <!-- Dropdown menu of all states -->
                     <option disabled selected value>Choose State</option>
@@ -184,6 +204,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         </div>
 
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Handling Redirects
+                <?php if ($redirect && $redirectPage): ?>
+                    setTimeout(function() {
+                        window.location.href = "<?php echo $redirectPage; ?>"; // Use the PHP variable to control the redirect
+                    }, 5000);
+                <?php endif; ?>
+
+                // Handling Message Disappearance
+                const messageContainer = document.querySelector('.message-container');
+                if (messageContainer && messageContainer.style.display !== 'none') {
+                    setTimeout(function() {
+                        messageContainer.style.display = 'none'; // Hide the message
+                    }, 5000); // Adjust as necessary
+                }
+            });
+        </script>
+        
         <script type="module">
             import { eventOptAmerica } from './src/stateDisplayHandler.js';
 
@@ -227,9 +266,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!valid) event.preventDefault();
             }
 
-            form.addEventListener('submit', submitEvent);
             //Add event listener to the country select element to see if USA was selected
             optCountry.addEventListener('change', (event) => eventOptAmerica(event.target.value));
+            form.addEventListener('submit', (event) => submitEvent(event));
         </script>
 
         </main>

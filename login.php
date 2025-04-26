@@ -101,7 +101,15 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
-    <link rel="stylesheet" href="loginStyles.css">
+    <link rel="stylesheet" href="Styles/loginStyles.css">
+    <link rel="preload" as="image" href="Images/digital.jpg">
+    <style>
+        body {
+            background: url('Images/digital.jpg') no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+        }
+    </style>
 </head>
 
 <body>

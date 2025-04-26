@@ -10,35 +10,100 @@ Revisions:
 02/04/25: Ty Steinbach added PHP to ensure reset_password functionality when needed
 02/05/25: Keagan Haar created a styling CSS
 02/16/25: Ty Steinbach changed hash() to password_hash() for security and changed comparison to password_verify, changed table to users
-
 -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="indexStyles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <link rel="stylesheet" href="Styles/indexStyles.css" />
+
+  <!-- GSAP and ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 </head>
 
 <body>
-    <section class="tile white">
-        <h1>Welcome to My Digital Dashboard</h1>
-        <p><a href="login.php" class="link-button">Login</a></p>
-    </section>
-    <section class="tile black">
-        <h1>About Us</h1>
-        <p>This section has a black background with white text.</p>
-    </section>
-    <section class="tile white">
-        <h1>Our Services</h1>
-        <p>Back to a white background for this section.</p>
-    </section>
-    <section class="tile black">
-        <h1>Contact Us</h1>
-        <p>Final section with a black background.</p>
-    </section>
-</body>
+
+  <section class="tile white">
+    <h1 class="animate-title">Welcome to My Digital Dashboard</h1>
+  </section>
+
+  <section class="tile black">
+    <h1 class="animate-section">About Us</h1>
+    <p class="animate-section">We offer a personalized digital homebase for our users.</p>
+    <p class="animate-section">Users can: View local weather, chat with friends, customize their personal calendar and so much more!</p>
+  </section>
+
+  <section class="tile white">
+    <h1 class="animate-section">Where To Start?</h1>
+    <p class="animate-section">Login or create an account with the link below.</p>
+    <p class="animate-section">Thank you for using our service!</p>
+    <p><a href="login.php" class="link-button">Login</a></p>
+  </section>
+
+  <section class="tile black">
+    <h1 class="animate-section">About Us</h1>
+    <p class="animate-section">Contact Information:</p>
+    <p class="animate-section">Ty Steinbach: steinbat1@csp.edu </p>
+    <p class="animate-section">Dylan Theis: theisd@csp.edu</p>
+    <p class="animate-section">Keagan Haar: haark@csp.edu</p>
+    <p class="animate-section">
+        <a href="http://fourfiftyg3.byethost24.com" target="_blank">Visit our site</a>
+    </p>
+    <p class="animate-section">&copy; 2025 My Digital Dashboard. All rights reserved.</p>
+
+  </section>
+  <script>
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Animate title on page load
+    gsap.from(".animate-title", {
+      opacity: 0,
+      y: -80,
+      duration: 1.5,
+      ease: "expo.out"
+    });
+
+    // Animate each section's heading and paragraph
+    document.querySelectorAll(".tile").forEach((section, i) => {
+      const heading = section.querySelector("h1");
+      const paragraph = section.querySelector("p");
+
+      if (heading && paragraph) {
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            trigger: section,
+            start: "top 80%",
+            toggleActions: "play none none reverse"
+          }
+        });
+
+        tl.from(heading, {
+          opacity: 0,
+          y: 50,
+          duration: 1,
+          ease: "power3.out"
+        }).from(paragraph, {
+          opacity: 0,
+          y: 40,
+          duration: 1,
+          ease: "power3.out"
+        }, "-=0.5");
+      }
+    });
+
+    gsap.utils.toArray(".tile").forEach((tile, i) => {
+        gsap.to(tile, {
+            scrollTrigger: {
+            trigger: tile,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: true
+            }
+        });
+    });
+  </script>
 </body>
 </html>

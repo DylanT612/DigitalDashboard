@@ -7,6 +7,13 @@
         exit();
     }
 
+    if (isset($_GET['logout'])) {
+        session_unset();    // Clear all session variables
+        session_destroy();  // Destroy the session
+        header("Location: login.php");
+        exit();
+    }
+
     include 'EventCalendarPHP-main/set_user_id.php';
 
     // Database connection details
@@ -84,7 +91,7 @@
             $message = $_POST['message'];
             $receiver_id = $_POST['receiver_id'];
             $sender_id = $_SESSION['user_id'];
-            $seen = 1;
+            $seen = 0;
             
             // Insert message into db
             $stmt = $conn->prepare("INSERT INTO messages (sender_id, receiver_id, message, seen) VALUES (?, ?, ?, ?)");
@@ -223,6 +230,8 @@ Revisions:
           added apps tab, bug fixes, removed user from adding or messaging self, changed 
           chatting icon if received new message
 04/04/25: Dylan Theis added minor changes to CSS, comments
+04/15/25: Keagan Haar added full integration of styling
+04/18/25: Keagan Haar fixed minor bugs, added preload image handling
 
 References:
 GNEWS API for sourcing 10 headlines 
@@ -234,7 +243,16 @@ NOMINATIM API for sourcing the coordinates for the weather data
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
-    <link rel="stylesheet" href="homeStyles.css">
+    <link rel="stylesheet" href="Styles/homeStyles.css">
+    <link rel="preload" as="image" href="Images/digital.jpg">
+    <style>
+        body {
+            background: url('Images/digital.jpg') no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+        }
+    </style>
+    <link rel="prefetch" as="image" href="<?php echo htmlspecialchars($thisUser['profile_picture']); ?>">
 
     <?php
     // Database connection details
@@ -370,7 +388,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                     forecastDay.innerHTML = `
                         <div class="forecast-left">
                             <div class="forecast-day-name">${dayOfWeek}</div>
-                            <div class="forecast-temp">${dailyForecast.temperature_2m_max[i]}°/${dailyForecast.temperature_2m_min[i]}°</div>
+                            <div class="forecast-temp" style="color: black; font-weight: bold;">${dailyForecast.temperature_2m_max[i]}°/${dailyForecast.temperature_2m_min[i]}°</div>
                         </div>
                         <div class="forecast-right">
                             <img class="forecast-icon" src="${getWeatherIcon(dailyForecast.weather_code[i])}" alt="Forecast Icon">
@@ -584,7 +602,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
         //Handles displaying options when clicking on profile
         function profileEvents () {
             document.getElementById("profileContainer").addEventListener("click", () => {
-                console.log(profileDisplayHandler);
+                // console.log(profileDisplayHandler);
                 profileDisplayHandler = !profileDisplayHandler;
                 displayProfileOptions(profileDisplayHandler);
             });
@@ -597,10 +615,13 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 window.location.href = 'viewFriends.php';
             });
         }
+
         function displayProfileOptions(display) {
             const profileNav = document.getElementById("profileNav");
             if (display) {
-                profileNav.style.display = 'grid';
+                profileNav.style.display = 'flex';
+                profileNav.style.flexDirection = 'column';
+                profileNav.style.gap = '20px';
             } else {
                 profileNav.style.display = 'none';
             }
@@ -926,7 +947,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 window.location.href = 'EventCalendarPHP-main';
             });
         }
-        
     </script>
 
 
@@ -941,42 +961,41 @@ NOMINATIM API for sourcing the coordinates for the weather data
             <!-- Messaging Icon -->
             <div id="messageCenter">
                 <img src="https://www.svgrepo.com/show/304507/messages.svg" id="chatApp" alt="Chatting Icon">
-                
+                    
                 <script>
                     // Change logo if new message received otherwise neutral
                     let messageLogoChange = false;
                     function refreshMessageIcon() {
                         document.getElementById('chatApp').src = messageLogoChange ? "https://www.svgrepo.com/show/304513/messages-alert.svg" : "https://www.svgrepo.com/show/304507/messages.svg";
-                    }
-                    
+                    }  
                 </script>
             </div>
 
+            <!-- Main Chat Window -->
+            <div id="chatWindowContainer" style="color: black; top: 5px;">
+                <div id="searchContainer">
+                <input type="text" id="searchUser" placeholder="Search User..." oninput="searchUsers()">
+                    <ul id="userList">
+                        <!-- Username new message notifcations appear here-->
+                    </ul>
+                </div>
+
+                <div id="chatListContainer">
+                    <!-- Dropdown of usernames matching query -->
+                </div>
+            </div>
+    
             <div id="profileContainer" title="Profile Options">
                 <img src="<?php echo htmlspecialchars($thisUser['profile_picture']) . '?' . time(); ?>" alt="Profile Picture" id="profilePic">
                 <nav id="profileNav" style="display: none;">
                     <div id="profNavUsername"><?php echo $_SESSION['username']; ?></div>
                     <div class="profNav" id="profNavSettings">Account Settings</div>
                     <div class="profNav" id="friendsListNavSettings">View Friends</div>
+                    <div class="profNav" id="logOutNavSettings">Log Out</div>
                 </nav>
             </div>
         </div>
     </header>
-
-    <!-- Main Chat Window -->
-    <div id="chatWindowContainer">
-        <div id="searchContainer">
-            <input type="text" id="searchUser" placeholder="Search User..." oninput="searchUsers()">
-            <ul id="userList">
-                <!-- Username new message notifcations appear here-->
-            </ul>
-
-        </div>
-
-        <div id="chatListContainer">
-            <!-- Dropdown of usernames matching query -->
-        </div>
-    </div>
 
     <!-- Individual Chat Window -->
     <div id="individualChatWindow">
@@ -991,46 +1010,48 @@ NOMINATIM API for sourcing the coordinates for the weather data
 
         <!-- Message Indicator when clicked brings to bottom of messages -->
         <div id="newMessageIndicator" onclick="scrollToBottom()">New Messages</div>
-        
+                        
         <!-- Space to type out your message -->
         <input type="text" id="messageInput" placeholder="Type a message...">
 
         <!-- Send button -->
         <button id="sendMessage">Send</button>
     </div>
-    
-    <!-- Add Friends div-->
-    <div id="friendFinder">
-        <div id="friendsScrollbar">
 
-            <!-- Friend Search bar -->
-            <h3>Search for friends</h3>
-            <input type="text" id="searchInput" placeholder="Add Friends...">
-            <div id="searchResults" class="dropdown">
-                <!-- Displays query results -->
-            </div>
+    <div id="leftSidebar">
+        <!-- Add Friends div-->
+        <div id="friendFinder">
+            <div id="friendsScrollbar">
 
-            <h3>Friend Requests</h3>
-            <div id="friendRequests">
-                <!-- Displays any incoming friend requests -->
+                <!-- Friend Search bar -->
+                <h3>Search for friends</h3>
+                <input type="text" id="searchInput" placeholder="Add Friends...">
+                <div id="searchResults" class="dropdown">
+                    <!-- Displays query results -->
+                </div>
+
+                <h3>Friend Requests</h3>
+                <div id="friendRequests">
+                    <!-- Displays any incoming friend requests -->
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Mini-Calendar Div -->
-    <div id="todaysEvents">
-        <div id="calendarHeader">
-            <div id="calendarLink">Open Calendar</div>
-            <p id="day">
-                <span id="DOW"></span>
-                <span id="date"></span>
-            </p>
-            <button type="button" id="addEvent">Add</button>
+        <!-- Mini-Calendar Div -->
+        <div id="todaysEvents">
+            <div id="calendarHeader">
+                <div id="calendarLink">Open Calendar</div>
+                <p id="day">
+                    <span id="DOW"></span>
+                    <span id="date"></span>
+                </p>
+                <button type="button" id="addEvent">Add</button>
+            </div>
+            
+            <ul id="events">
+
+            </ul>
         </div>
-        
-        <ul id="events">
-
-        </ul>
     </div>
 
     <!-- Weather Display -->
@@ -1066,7 +1087,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
             </div>
             <div id="createdBy"></div>
             <div>
-                <form id="eventForm">
+                <form id="eventForm" style="gap: 20px;">
                     <input type="hidden" id="eventId">
                     <div>
                         <label for="eventTitle">Event Title</label>
@@ -1141,9 +1162,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
         const loggedInUserId = <?php echo json_encode($_SESSION['user_id'] ?? null); ?>;
         const loggedInUsername = <?php echo json_encode($_SESSION['username'] ?? null); ?>;
         
-        
-        
-        
         // Chat search/messages appear opens and closes
         function toggleChatSearch() {
             let chatSearch = document.getElementById('chatWindowContainer');
@@ -1154,10 +1172,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
         document.addEventListener("DOMContentLoaded", function() {
             document.getElementById("messageCenter").addEventListener("click", toggleChatSearch);
         });
-
-        
-
-
 
         // To make the chat window draggable
         const chatWindow = document.getElementById("individualChatWindow");
@@ -1266,7 +1280,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                                 let userItem = document.createElement("li");
                                 userItem.classList.add("userItem");
                                 userItem.dataset.userId = user.id;
-
+                                
                                 // Get the username and show a New Message banner
                                 if (friends.includes(user.id)) {
                                     userItem.innerHTML = `${user.username} <img src="uploads/friend.svg" alt="friends" id="friendsIndicator"><span class="new-message">New Message</span>`;
@@ -1430,11 +1444,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
             });
         });
 
-
-
-
-        
-        
         // Load messages from user
         function loadMessages(userId) {
             // PHP request for messages from the chatter
@@ -1578,6 +1587,9 @@ NOMINATIM API for sourcing the coordinates for the weather data
             }
         }, 5000);
 
+        // Initial call
+        loadUnreadMessageUsers();
+        
         // Auto-refresh unread users list every 10 seconds
         setInterval(loadUnreadMessageUsers, 10000);
 
@@ -1639,7 +1651,6 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 // Display updated information with your choice
                 if (data.success) {
                     loadFriendRequests();
-                    loadFriendsList();
                 } else {
                     alert("Error handling request");
                 }
@@ -1664,9 +1675,9 @@ NOMINATIM API for sourcing the coordinates for the weather data
                     data.forEach(request => {
                         // In new div display they sent a request and give option to accept or decline invitation
                         let div = document.createElement('div');
-                        div.innerHTML = `${request.username} sent you a friend request. 
-                            <button id="acceptButton" onclick="handleRequest(${request.id}, 'accept')">Accept</button>
-                            <button id="declineButton" onclick="handleRequest(${request.id}, 'decline')">Decline</button>`;
+                        div.innerHTML = `From: ${request.username}
+                            <button class="btn-accept" onclick="handleRequest(${request.id}, 'accept')">Accept</button>
+                            <button class="btn-decline" onclick="handleRequest(${request.id}, 'decline')">Decline</button>`;
                         requestsDiv.appendChild(div);
                     });
                 });
@@ -1693,6 +1704,7 @@ NOMINATIM API for sourcing the coordinates for the weather data
                 // Show each result in the dropdown
                 if (searchResults) {
                     searchResults.style.display = "block";
+                    searchResults.style.color = "black";
                 }
             });
         });
@@ -1701,71 +1713,69 @@ NOMINATIM API for sourcing the coordinates for the weather data
         loadFriendRequests();
         // Run requests every 60 seconds
         setInterval(loadFriendRequests, 60000);
-
     </script>
 
-    <!-- Apps -->
     <div id="app-tab" class="app-tab">
-        <button id="toggle-button" class="toggle-button">Apps</button>
-        <div id="app-container" class="app-container">
-            <!-- Individual Apps -->
-            <div class="app" onclick="window.open('http://secretdoor.notepadwebdevelopment.com/');">
-                <img src="./AppLogos/theSecretDoor.png" alt="The Secret Door" class="app-icon">
-                <p class="app-title">The Secret Door</p>
-            </div>
+            <button id="toggle-button" class="toggle-button">Apps</button>
+            <div id="app-container" class="app-container">
+                <!-- Individual Apps -->
+                <div class="app" onclick="window.open('http://secretdoor.notepadwebdevelopment.com/');">
+                    <img src="./AppLogos/theSecretDoor.png" alt="The Secret Door" class="app-icon">
+                    <p class="app-title">The Secret Door</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://theuselessweb.com/');">
-                <img src="./AppLogos/theUselessWeb.png" alt="The Useless Web" class="app-icon">
-                <p class="app-title">The Useless Web</p>
-            </div>
+                <div class="app" onclick="window.open('https://theuselessweb.com/');">
+                    <img src="./AppLogos/theUselessWeb.png" alt="The Useless Web" class="app-icon">
+                    <p class="app-title">The Useless Web</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://www.reddit.com/');">
-                <img src="./AppLogos/reddit.png" alt="Reddit" class="app-icon">
-                <p class="app-title">Reddit</p>
-            </div>
+                <div class="app" onclick="window.open('https://www.reddit.com/');">
+                    <img src="./AppLogos/reddit.png" alt="Reddit" class="app-icon">
+                    <p class="app-title">Reddit</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://apod.nasa.gov/apod/astropix.html');">
-                <img src="./AppLogos/NASAsPictureOfTheDay.png" alt="NASA's Picture of the Day" class="app-icon">
-                <p class="app-title">NASA's Picture of the Day</p>
-            </div>
+                <div class="app" onclick="window.open('https://apod.nasa.gov/apod/astropix.html');">
+                    <img src="./AppLogos/NASAsPictureOfTheDay.png" alt="NASA's Picture of the Day" class="app-icon">
+                    <p class="app-title">NASA's Picture of the Day</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://www.history.com/this-day-in-history/');">
-                <img src="./AppLogos/todayInHistory.png" alt="Today In History" class="app-icon">
-                <p class="app-title">Today In History</p>
-            </div>
+                <div class="app" onclick="window.open('https://www.history.com/this-day-in-history/');">
+                    <img src="./AppLogos/todayInHistory.png" alt="Today In History" class="app-icon">
+                    <p class="app-title">Today In History</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://quickdraw.withgoogle.com/');">
-                <img src="./AppLogos/quickDraw.png" alt="Quick, Draw!" class="app-icon">
-                <p class="app-title">Quick, Draw!</p>
-            </div>
+                <div class="app" onclick="window.open('https://quickdraw.withgoogle.com/');">
+                    <img src="./AppLogos/quickDraw.png" alt="Quick, Draw!" class="app-icon">
+                    <p class="app-title">Quick, Draw!</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://costcodle.com/');">
-                <img src="./AppLogos/costcodle.png" alt="Costcodle" class="app-icon">
-                <p class="app-title">Costcodle</p>
-            </div>
+                <div class="app" onclick="window.open('https://costcodle.com/');">
+                    <img src="./AppLogos/costcodle.png" alt="Costcodle" class="app-icon">
+                    <p class="app-title">Costcodle</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://heardlewordle.io/');">
-                <img src="./AppLogos/heardle.png" alt="Heardle" class="app-icon">
-                <p class="app-title">Heardle</p>
-            </div>
+                <div class="app" onclick="window.open('https://heardlewordle.io/');">
+                    <img src="./AppLogos/heardle.png" alt="Heardle" class="app-icon">
+                    <p class="app-title">Heardle</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://globle-game.com/');">
-                <img src="./AppLogos/globle.png" alt="Globle" class="app-icon">
-                <p class="app-title">Globle</p>
-            </div>
+                <div class="app" onclick="window.open('https://globle-game.com/');">
+                    <img src="./AppLogos/globle.png" alt="Globle" class="app-icon">
+                    <p class="app-title">Globle</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://games.oec.world/en/tradle/');">
-                <img src="./AppLogos/tradle.png" alt="Tradle" class="app-icon">
-                <p class="app-title">Tradle</p>
-            </div>
+                <div class="app" onclick="window.open('https://games.oec.world/en/tradle/');">
+                    <img src="./AppLogos/tradle.png" alt="Tradle" class="app-icon">
+                    <p class="app-title">Tradle</p>
+                </div>
 
-            <div class="app" onclick="window.open('https://www.nytimes.com/games/wordle/index.html');">
-                <img src="./AppLogos/wordle.png" alt="Wordle" class="app-icon">
-                <p class="app-title">Wordle</p>
-            </div>
+                <div class="app" onclick="window.open('https://www.nytimes.com/games/wordle/index.html');">
+                    <img src="./AppLogos/wordle.png" alt="Wordle" class="app-icon">
+                    <p class="app-title">Wordle</p>
+                </div>
 
+            </div>
         </div>
-    </div>
 
     <!-- Apps JS -->
     <script>
@@ -1776,9 +1786,14 @@ NOMINATIM API for sourcing the coordinates for the weather data
         toggleButton.addEventListener('click', function() {
             appTab.classList.toggle('open');
         });
-
     </script>
 
+    <!-- Logout Button Listener -->
+    <script>
+        document.getElementById('logOutNavSettings').addEventListener('click', () => {
+            window.location.href = 'home.php?logout';
+        });
+    </script>
 
 </body>
 <script src="./EventCalendarPHP-main/assets/js/friendScript.js"></script>

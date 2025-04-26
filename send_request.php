@@ -3,7 +3,7 @@ session_start();
 // Database connection details
 $host = '';
 $user = '';
-$pass = '';
+$pass = ''; 
 $dbname = '';
 
 // Database connection
