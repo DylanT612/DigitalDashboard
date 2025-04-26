@@ -5,10 +5,10 @@
         exit();
     }
 
-    $host = 'localhost';
-    $user = 'root';
-    $pass = 'mysql'; 
-    $dbname = 'csc450temp';
+    $host = 'sql313.byethost24.com';
+    $user = 'b24_38167825';
+    $pass = 'January24#'; 
+    $dbname = 'b24_38167825_dashboard';
 
     $conn = new mysqli($host, $user, $pass, $dbname);
 

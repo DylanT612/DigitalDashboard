@@ -14,11 +14,20 @@ Revisions:
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>View Friends</title>
-        <link rel="stylesheet" href="userAcctStyles.css">
+        <link rel="stylesheet" href="Styles/userAcctStyles.css">
+        <link rel="preload" as="image" href="Images/digital.jpg">
+        <style>
+            body {
+                background: url('Images/digital.jpg') no-repeat center center fixed;
+                background-size: cover;
+                position: relative;
+            }
+        </style>
     </head>
     
     <body>
         <div class="main-container">
+            <!-- Return to home page -->
             <span id="dashboardLink">🡰 Dashboard</span>
             <div class="credentials-container">
                 <h1>Your Friends</h1>
@@ -27,8 +36,9 @@ Revisions:
 
             
         <script>
+            // Listen for click to return to dashboard
             document.getElementById('dashboardLink').addEventListener('click', function() {
-                window.location.href = 'home.php';  // Adjust URL as needed
+                window.location.href = 'home.php';
             });
         </script>
         <script>
@@ -54,6 +64,7 @@ Revisions:
                         });
                     });
             }
+            // Run friends list
             loadFriendsList();
         </script>
             

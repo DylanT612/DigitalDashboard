@@ -1,0 +1,86 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overscroll-behavior: none;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: #EFEFEF;
+}
+
+.main-container {
+    background-color: rgba(50, 50, 50, 0.8);
+    padding: 20px;
+    border-radius: 20px;
+    width: 700px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    margin: 50px auto;
+}
+
+input, select {
+    width: 97%;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+button {
+    background-color: #4CAF50; /* Green button */
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%; /* Full width button */
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+/* Style for all buttons and links styled as buttons */
+.link-button {
+    display: inline-block;
+    background-color: rgba(50, 50, 50, 0.8); /* Same as the login-container for perfect blending */
+    color: white;
+    padding: 10px 15px;
+    margin: 5px 0;
+    border-radius: 5px;
+    text-decoration: none; /* Removes underline for anchor tags */
+    border: none; /* Ensures no visible borders */
+    cursor: pointer; /* Cursor indicates clickability on hover */
+    text-align: center; /* Centers text within buttons */
+    width: 100%; /* Full width to match container */
+    box-sizing: border-box; /* Includes padding in width calculation */
+    transition: all 0.3s ease; /* Smooth transition for color and transform */
+}
+
+.link-button:hover {
+    background-color: rgba(80, 80, 80, 0.9); /* Subtly lighter on hover to indicate interactivity */
+    transform: translateY(-2px); /* Subtle lift effect on hover */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3); /* Adds shadow on hover for depth */
+}
+
+.message-container {
+    width: 95%;
+    padding: 10px;
+    margin-bottom: 15px;
+    text-align: center;
+    border-radius: 5px;
+    display: none;
+    background-color: #000;
+}
+
+.success {
+    color: #28a745;
+}
+
+.error {
+    color: #dc3545;
+    display: block;
+}

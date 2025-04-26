@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 // Database connection details
 $host = '';
 $user = '';
-$pass = '';
+$pass = ''; 
 $dbname = '';
 
 // Database connection
@@ -20,11 +20,13 @@ $user_id = $_SESSION['user_id'];
 
 // Display the users friends 
 $stmt = $conn->prepare("
-    SELECT u.username FROM friends f 
-    JOIN users u ON (f.user1_id = u.id OR f.user2_id = u.id) 
-    WHERE (f.user1_id = ? OR f.user2_id = ?) AND u.id != ?
+    SELECT DISTINCT u.username FROM friends f 
+    JOIN users u ON ((f.user1_id = ? AND u.id = f.user2_id) OR
+    (f.user2_id = ? AND u.id = f.user1_id))
+
+
 ");
-$stmt->bind_param("iii", $user_id, $user_id, $user_id);
+$stmt->bind_param("ii", $user_id, $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 // Display each user

@@ -130,6 +130,7 @@
                             $errorMessage = "Profile picture updated successfully.";
                             $messageType = "success";
                             $thisUser['profile_picture'] = $profile_picture;
+                            echo '<link rel="preload" as="image" href="' . htmlspecialchars($profile_picture) . '">';
                         } else {
                             $errorMessage = "Error updating profile picture: " . $stmt->error;
                             $messageType = "error";
@@ -188,7 +189,7 @@
 User Account Settings (user_acct_settings)
 CSC 450 Capstone Final Project Byethost
 Dylan Theis: theisd@csp.edu
-Keagan Harr: 
+Keagan Haar: haark@csp.edu
 Ty Steinbach:
 1/25/25
 Revisions: 
@@ -201,13 +202,24 @@ Revisions:
 02/15/25: Ty Steinbach added full PHP functionality 
 02/16/25: Ty Steinbach styled
 02/27/25: Ty Steinbach ensured first select options are disabled
+03/15/25: Keagan Haar added styling elements with external CSS page
+04/18/25: Keagan Haar added preload statements for images to allow for faster image loading times
 -->
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Account Settings</title>
-        <link rel="stylesheet" href="userAcctStyles.css">
+        <link rel="stylesheet" href="Styles/userAcctStyles.css">
+        <link rel="preload" as="image" href="Images/digital.jpg">
+        <style>
+            body {
+                background: url('Images/digital.jpg') no-repeat center center fixed;
+                background-size: cover;
+                position: relative;
+            }
+        </style>
+        <link rel="prefetch" as="image" href="<?php echo htmlspecialchars($thisUser['profile_picture']); ?>">
         
         <script type="module">
             import {eventOptAmerica} from './src/stateDisplayHandler.js';
@@ -454,6 +466,6 @@ Revisions:
         setInputValue('bday', '<?php echo $thisUser["birth_date"]; ?>');
         setInputValue('optCountry', '<?php echo $thisUser["country"]; ?>');
         setInputValue('city', '<?php echo $thisUser["city"]; ?>');
-        setInputValue('optState', '<?php echo $thisUser["state"]; ?>'); // Ensure you have a similar mechanism for state if needed
+        setInputValue('optState', '<?php echo $thisUser["state"]; ?>');
     </script>
 </html>

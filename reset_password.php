@@ -23,7 +23,7 @@ if (!isset($_SESSION['username']) || $_SESSION['reset'] == 0) {
 //Database connection details
 $host = '';
 $user = '';
-$pass = '';
+$pass = ''; 
 $dbname = '';
 
 //Connect
@@ -148,7 +148,15 @@ if(array_key_exists('txtReset',$_POST) && array_key_exists('txtConfirm',$_POST))
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Password</title>
-    <link rel="stylesheet" href="resetPassStyles.css">
+    <link rel="stylesheet" href="Styles/resetPassStyles.css">
+    <link rel="preload" as="image" href="Images/digital.jpg">
+    <style>
+        body {
+            background: url('Images/digital.jpg') no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+        }
+    </style>
 </head>
 
 <body>

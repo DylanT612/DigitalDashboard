@@ -4,7 +4,7 @@ header('Content-Type: application/json');
 // Database connection details
 $host = '';
 $user = '';
-$pass = '';
+$pass = ''; 
 $dbname = '';
 
 // Database connection

@@ -17,13 +17,20 @@ Revisions:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password</title>
-    <link rel="stylesheet" href="forgotPassStyles.css">
+    <link rel="stylesheet" href="Styles/forgotPassStyles.css">
+    <link rel="preload" as="image" href="Images/digital.jpg">
+    <style>
+        body {
+            background: url('Images/digital.jpg') no-repeat center center fixed;
+            background-size: cover;
+            position: relative;
+        }
+    </style>
     <?php 
-
         //PHPMailer classes
-        require 'C:/Program Files/Ampps/www/DigitalDashboard/src/Exception.php';
-        require 'C:/Program Files/Ampps/www/DigitalDashboard/src/PHPMailer.php';
-        require 'C:/Program Files/Ampps/www/DigitalDashboard/src/SMTP.php';
+        require 'src/Exception.php';
+        require 'src/PHPMailer.php';
+        require 'src/SMTP.php';
 
         //Using PHPMailer stuff
         use PHPMailer\PHPMailer\PHPMailer;
@@ -31,10 +38,10 @@ Revisions:
 
 
         //Database connection details
-        $host = 'localhost';
-        $user = 'root';
-        $pass = 'mysql'; 
-        $dbname = 'dashboardDB';
+        $host = '';
+        $user = '';
+        $pass = ''; 
+        $dbname = '';
 
         //Establish connection
         $conn = new mysqli($host, $user, $pass, $dbname);
@@ -140,7 +147,6 @@ Revisions:
 </head>
 
 <body>
-    <div class="background"></div>
     <div class="main-container">
         <div class="message-container <?php echo isset($messageType) ? $messageType : ''; ?>" style="<?php echo !empty($errorMessage) ? 'display:block;' : 'display:none;'; ?>">
                 <?php echo !empty($errorMessage) ? $errorMessage : ''; ?>
@@ -148,7 +154,7 @@ Revisions:
         <h1>Forgot Password?</h1>
         <p>Enter your email for a temporary password (if account exists)</p>
         <form method="POST" action="">
-            <label for="`txtEmailForgot">Email</label>
+            <label for="txtEmailForgot">Email</label>
             <input type="text" id="txtEmailForgot" name="txtEmailForgot" placeholder="example@email.com">
 
             <button type="submit" id="btnSubmitForgot">Submit</button>

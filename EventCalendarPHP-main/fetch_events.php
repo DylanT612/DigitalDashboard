@@ -1,4 +1,8 @@
 <?php
+header('Content-Type: application/json');
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 // Include the functions file to fetch events from the database
 require 'includes/functions.php';
 
